@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin panel - Ishga kelib ketish</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body data-page="admin">
+    <main class="app">
+      <section class="topbar" aria-label="Admin bosh panel">
+        <div>
+          <p class="eyebrow">Admin panel</p>
+          <h1>Nazorat va hisobot</h1>
+        </div>
+        <div class="datebox">
+          <span id="todayLabel">Bugun</span>
+          <strong id="clockLabel">--:--</strong>
+        </div>
+      </section>
+
+      <section class="summary-grid" id="adminSummary" aria-label="Kunlik ko'rsatkichlar" hidden>
+        <article>
+          <span>Jami xodim</span>
+          <strong id="totalEmployees">0</strong>
+        </article>
+        <article>
+          <span>Ishda</span>
+          <strong id="activeEmployees">0</strong>
+        </article>
+        <article>
+          <span>Bugungi soat</span>
+          <strong id="totalHours">0 soat</strong>
+        </article>
+        <article>
+          <span>Kech qolgan</span>
+          <strong id="lateEmployees">0</strong>
+        </article>
+      </section>
+
+      <section class="self-panel page-hidden" aria-label="Xodim kelish ketish oynasi">
+        <div class="self-copy">
+          <p class="eyebrow">Xodim oynasi</p>
+          <h2>Kodingizni kiriting</h2>
+        </div>
+        <div class="camera-box">
+          <video id="cameraPreview" autoplay playsinline muted></video>
+          <canvas id="proofCanvas" hidden></canvas>
+          <span id="cameraStatus">Kamera ochilmoqda...</span>
+        </div>
+        <form id="selfServiceForm" class="self-form">
+          <input id="employeeCode" type="text" inputmode="numeric" autocomplete="off" placeholder="Xodim kodi" maxlength="4" required />
+          <button id="selfCheckInBtn" type="button" disabled>Keldim</button>
+          <button id="selfCheckOutBtn" type="button" class="secondary" disabled>Ketdim</button>
+        </form>
+        <div id="codeEmployeePreview" class="employee-preview"></div>
+        <div id="locationStatus" class="employee-preview">Lokatsiya belgilashda olinadi</div>
+        <div id="selfMessage" class="self-message" role="status"></div>
+      </section>
+
+      <section class="admin-gate" id="adminGate">
+        <div>
+          <p class="eyebrow">Kirish</p>
+          <h2>Admin PIN</h2>
+        </div>
+        <form id="adminLoginForm" class="admin-form">
+          <input id="adminPin" type="password" inputmode="numeric" placeholder="Admin PIN" maxlength="4" />
+          <button type="submit">Ochish</button>
+        </form>
+        <div id="adminMessage" class="self-message" role="status"></div>
+      </section>
+
+      <section class="workbench" id="adminArea" hidden>
+        <nav class="dashboard-tabs" aria-label="Admin bo'limlari">
+          <button type="button" class="active" data-dashboard-tab="dashboard">Dashboard</button>
+          <button type="button" data-dashboard-tab="employees">Xodimlar</button>
+        </nav>
+
+        <section class="dashboard-view" data-dashboard-view="dashboard">
+          <section class="arrival-panel">
+          <div class="panel-title">
+            <div>
+              <p class="eyebrow">Sana bo'yicha ro'yxat</p>
+              <h2>Kelish vaqtlari</h2>
+            </div>
+            <label class="date-filter">
+              Sana
+              <input id="reportDate" type="date" />
+            </label>
+          </div>
+          <div class="arrival-list" id="arrivalReportBody"></div>
+          <div id="arrivalEmptyState" class="empty-state">
+            Hali xodim qo'shilmagan.
+          </div>
+          </section>
+
+          <section class="late-panel">
+          <div class="panel-title">
+            <div>
+              <p class="eyebrow">Kunlik nazorat</p>
+              <h2>Kechikish va kelmaganlar</h2>
+            </div>
+          </div>
+          <div class="late-stats">
+            <article>
+              <span>Kelmagan</span>
+              <strong id="absentEmployees">0</strong>
+            </article>
+            <article>
+              <span>Kech qolgan</span>
+              <strong id="lateEmployeesDetail">0</strong>
+            </article>
+            <article>
+              <span>Jami kechikish</span>
+              <strong id="totalLateTime">0 daq</strong>
+            </article>
+          </div>
+          <div class="late-list" id="lateReportBody"></div>
+          <div id="lateEmptyState" class="empty-state">
+            Bugun kech qolgan yoki kelmagan xodim yo'q.
+          </div>
+          </section>
+        </section>
+
+        <section class="employees-view" data-dashboard-view="employees" hidden>
+          <aside class="panel">
+          <div class="panel-title">
+            <h2>Xodim qo'shish</h2>
+            <button id="lockAdminBtn" type="button" class="ghost small-btn">Yopish</button>
+          </div>
+          <form id="employeeForm" class="employee-form">
+            <label>
+              Ism familiya
+              <input id="employeeName" type="text" autocomplete="name" placeholder="Masalan: Ali Valiyev" required />
+            </label>
+            <label>
+              Lavozim
+              <input id="employeeRole" type="text" placeholder="Masalan: Usta" />
+            </label>
+            <label>
+              Ish joyi
+              <select id="employeeLocation" required>
+                <option value="c5">C5 showroom: 09:00 - 21:00</option>
+                <option value="ibn-sino">Ibn Sino showroom: 09:00 - 20:00</option>
+                <option value="eco-bozor">Eco Bozor showroom: 10:00 - 20:00</option>
+                <option value="alfraganus">Alfraganus showroom: 10:00 - 20:00</option>
+                <option value="sklad">Sklad: 09:00</option>
+              </select>
+            </label>
+            <button type="submit">Xodim qo'shish</button>
+          </form>
+
+          <div class="actions">
+            <button id="exportBtn" type="button" class="secondary">CSV hisobot</button>
+            <button id="clearDayBtn" type="button" class="ghost">Bugunni tozalash</button>
+          </div>
+          </aside>
+
+          <section class="panel table-panel">
+          <div class="panel-title row-title">
+            <h2>Davomat jadvali</h2>
+            <input id="searchInput" type="search" placeholder="Qidirish" />
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Xodim</th>
+                  <th>Kod</th>
+                  <th>Ish joyi</th>
+                  <th>Kelgan vaqti</th>
+                  <th>Ketgan vaqti</th>
+                  <th>Ish vaqti</th>
+                  <th>Kechikish</th>
+                  <th>Dalil</th>
+                  <th>Holat</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="attendanceBody"></tbody>
+            </table>
+            <div id="emptyState" class="empty-state">
+              Hali xodim qo'shilmagan.
+            </div>
+          </div>
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <template id="rowTemplate">
+      <tr>
+        <td>
+          <div class="person">
+            <strong data-name></strong>
+            <span data-role></span>
+          </div>
+        </td>
+        <td><span class="code-badge" data-code></span></td>
+        <td data-location></td>
+        <td data-arrival>--:--</td>
+        <td data-departure>--:--</td>
+        <td data-hours>0 soat</td>
+        <td data-late>--</td>
+        <td>
+          <div class="proof-actions">
+            <button type="button" data-arrival-proof disabled>Kelgan</button>
+            <button type="button" data-departure-proof disabled>Ketgan</button>
+          </div>
+        </td>
+        <td><span class="status" data-status></span></td>
+        <td>
+          <div class="row-actions">
+            <button type="button" data-checkin>Kelish</button>
+            <button type="button" data-checkout>Ketish</button>
+            <button type="button" class="icon-btn" title="O'chirish" data-delete>×</button>
+          </div>
+        </td>
+      </tr>
+    </template>
+
+    <div id="proofModal" class="proof-modal" hidden>
+      <div class="proof-card">
+        <div class="panel-title">
+          <h2 id="proofTitle">Dalil</h2>
+          <button id="closeProofBtn" type="button" class="icon-btn" title="Yopish">×</button>
+        </div>
+        <img id="proofImage" alt="Davomat dalili" />
+        <div id="proofLocationText" class="proof-location" hidden></div>
+        <a id="proofMapLink" class="map-link" href="#" target="_blank" rel="noreferrer" hidden>Xaritada ko'rish</a>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
