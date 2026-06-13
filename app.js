@@ -318,7 +318,9 @@ async function getProofDetails(proofIdOrPhoto) {
   };
 }
 
-async function startCamera() {
+let currentFacingMode = "environment";
+
+async function startCamera(facingMode = currentFacingMode) {
   if (PAGE !== "employee") return;
   if (!navigator.mediaDevices?.getUserMedia) {
     cameraStatus.textContent = "Kamera topilmadi";
@@ -326,14 +328,27 @@ async function startCamera() {
     return;
   }
 
+  // Stop any existing stream
+  if (cameraPreview.srcObject) {
+    cameraPreview.srcObject.getTracks().forEach(t => t.stop());
+    cameraPreview.srcObject = null;
+  }
+
+  currentFacingMode = facingMode;
+
   try {
-    // Try rear camera first (exact), fall back to ideal, then any camera
     let stream;
-    const constraints = [
-      { video: { facingMode: { exact: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
-      { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
-      { video: true, audio: false },
-    ];
+    const constraints = facingMode === "environment"
+      ? [
+          { video: { facingMode: { exact: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+          { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+          { video: true, audio: false },
+        ]
+      : [
+          { video: { facingMode: { exact: "user" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+          { video: { facingMode: { ideal: "user" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+          { video: true, audio: false },
+        ];
     for (const c of constraints) {
       try { stream = await navigator.mediaDevices.getUserMedia(c); break; } catch {}
     }
@@ -344,12 +359,18 @@ async function startCamera() {
     selfCheckInBtn.disabled = false;
     selfCheckOutBtn.disabled = false;
     const track = stream.getVideoTracks()[0];
-    const facing = track?.getSettings?.()?.facingMode || "";
-    cameraStatus.textContent = facing === "environment" ? "Orqa kamera tayyor" : "Kamera tayyor";
+    const facing = track?.getSettings?.()?.facingMode || facingMode;
+    cameraStatus.textContent = facing === "environment" ? "Orqa kamera" : "Oldingi kamera";
+    const flipBtn = document.querySelector("#cameraFlipBtn");
+    if (flipBtn) flipBtn.title = facing === "environment" ? "Oldingi kameraga o'tish" : "Orqa kameraga o'tish";
   } catch {
     cameraStatus.textContent = "Kamera ruxsati berilmadi";
     showSelfMessage("Keldim/Ketdim qilish uchun kameraga ruxsat bering.", "error");
   }
+}
+
+async function switchCamera() {
+  await startCamera(currentFacingMode === "environment" ? "user" : "environment");
 }
 
 function captureProof() {
