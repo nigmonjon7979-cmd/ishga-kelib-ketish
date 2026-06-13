@@ -177,7 +177,44 @@ async function downloadTelegramPhoto(fileId) {
   if (!filePath) throw new Error("Could not get Telegram file path");
   const photoRes = await fetch(`https://api.telegram.org/file/bot${token}/${filePath}`);
   const buffer = await photoRes.arrayBuffer();
-  return `data:image/jpeg;base64,${Buffer.from(buffer).toString("base64")}`;
+  return Buffer.from(buffer);
+}
+
+// ─── AI Face comparison (Face++ API) ─────────────────────────────────────────
+
+async function compareFacesAI(refFileId, punchFileId) {
+  const apiKey = process.env.FACEPP_API_KEY;
+  const apiSecret = process.env.FACEPP_API_SECRET;
+  if (!apiKey || !apiSecret) return null; // not configured → manual review
+
+  try {
+    // Download both photos in parallel
+    const [refBuf, punchBuf] = await Promise.all([
+      downloadTelegramPhoto(refFileId),
+      downloadTelegramPhoto(punchFileId),
+    ]);
+
+    const form = new FormData();
+    form.append("api_key", apiKey);
+    form.append("api_secret", apiSecret);
+    form.append("image_base641", refBuf.toString("base64"));
+    form.append("image_base642", punchBuf.toString("base64"));
+
+    const res = await fetch("https://api-us.faceplusplus.com/facepp/v3/compare", {
+      method: "POST",
+      body: form,
+    });
+    const data = await res.json();
+    if (!res.ok || data.error_message) {
+      console.error("Face++ error:", data.error_message || res.status);
+      return null;
+    }
+    // confidence: 0–100; threshold ~75 for "same person"
+    return { confidence: data.confidence, threshold: data.thresholds?.["1e-3"] || 65 };
+  } catch (err) {
+    console.error("compareFacesAI error:", err);
+    return null;
+  }
 }
 
 async function sendPhotoToChat(chatId, photoDataUrl, caption) {
@@ -933,32 +970,68 @@ async function handlePhoto({ chatId, message }) {
       ...adminRows.map((r) => String(r.chatId)),
     ].filter((id) => id && String(id) !== String(chatId)));
 
-    // Send face review to each admin: reference photo first, then punch photo with approve/reject
-    for (const adminId of allAdminIds) {
-      (async () => {
-        try {
-          // Reference photo (stored during enrollment)
-          await sendTelegram("sendPhoto", {
-            chat_id: adminId,
-            photo: employee.faceFileId,
-            caption: `🪪 Etalon yuz: ${employee.name}`,
-          });
-          // Punch selfie with face review buttons
-          await sendTelegram("sendPhoto", {
-            chat_id: adminId,
-            photo: fileId,
-            caption: punchCaption + "\n\n🔍 Yuzni tekshiring:",
-            reply_markup: {
-              inline_keyboard: [[
-                { text: "✅ Yuz mos", callback_data: `face:ok:${result.proofId}:${chatId}` },
-                { text: "❌ Yuz mos emas", callback_data: `face:reject:${result.proofId}:${chatId}` },
-              ]],
-            },
-          });
-        } catch (err) {
-          console.error(`Admin face-review notify failed (${adminId}):`, err);
-        }
-      })();
+    // AI face comparison
+    const faceResult = await compareFacesAI(employee.faceFileId, fileId);
+
+    if (faceResult !== null) {
+      // AI available — auto decision
+      const faceOk = faceResult.confidence >= (faceResult.threshold || 65);
+      const newFaceStatus = faceOk ? "ok" : "rejected";
+      const sql2 = getSql();
+      await sql2`UPDATE proofs SET face_status = ${newFaceStatus} WHERE id = ${result.proofId}`;
+
+      const faceLabel = faceOk
+        ? `✅ Yuz mos (${Math.round(faceResult.confidence)}%)`
+        : `❌ Yuz mos emas (${Math.round(faceResult.confidence)}%, talab: ${Math.round(faceResult.threshold)}%)`;
+
+      if (!faceOk) {
+        await sendTelegram("sendMessage", {
+          chat_id: chatId,
+          text: `⚠️ Yuz tekshiruvidan o'tmadingiz (${Math.round(faceResult.confidence)}%).\nKelgan vaqtingiz qayd etildi, lekin rahbar ko'radi. Muammo bo'lsa admin bilan bog'laning.`,
+          reply_markup: employeeKeyboard(),
+        });
+      }
+
+      // Notify admins — no manual review needed, just FYI
+      for (const adminId of allAdminIds) {
+        (async () => {
+          try {
+            await sendTelegram("sendPhoto", {
+              chat_id: adminId,
+              photo: fileId,
+              caption: punchCaption + `\n\n🤖 AI natija: ${faceLabel}`,
+            });
+          } catch (err) {
+            console.error(`Admin notify failed (${adminId}):`, err);
+          }
+        })();
+      }
+    } else {
+      // No AI configured — send to admin for manual review
+      for (const adminId of allAdminIds) {
+        (async () => {
+          try {
+            await sendTelegram("sendPhoto", {
+              chat_id: adminId,
+              photo: employee.faceFileId,
+              caption: `🪪 Etalon yuz: ${employee.name}`,
+            });
+            await sendTelegram("sendPhoto", {
+              chat_id: adminId,
+              photo: fileId,
+              caption: punchCaption + "\n\n🔍 Yuzni tekshiring:",
+              reply_markup: {
+                inline_keyboard: [[
+                  { text: "✅ Yuz mos", callback_data: `face:ok:${result.proofId}:${chatId}` },
+                  { text: "❌ Yuz mos emas", callback_data: `face:reject:${result.proofId}:${chatId}` },
+                ]],
+              },
+            });
+          } catch (err) {
+            console.error(`Admin face-review notify failed (${adminId}):`, err);
+          }
+        })();
+      }
     }
   } catch (err) {
     console.error("Telegram punch error:", err);
