@@ -20,24 +20,30 @@
       </section>
 
       <section class="self-panel" aria-label="Xodim kelish ketish oynasi">
-        <div class="self-copy">
-          <p class="eyebrow">Xodimlar bo'limi</p>
-          <h2>Kodingizni kiriting</h2>
+        <div class="kiosk-cam">
+          <div class="camera-box">
+            <video id="cameraPreview" autoplay playsinline muted></video>
+            <canvas id="proofCanvas" hidden></canvas>
+            <span id="cameraStatus">Kamera ochilmoqda...</span>
+            <button id="cameraFlipBtn" type="button" onclick="switchCamera()" title="Kamerani almashtirish" aria-label="Kamerani almashtirish">⟳</button>
+          </div>
         </div>
-        <div class="camera-box">
-          <video id="cameraPreview" autoplay playsinline muted></video>
-          <canvas id="proofCanvas" hidden></canvas>
-          <span id="cameraStatus">Kamera ochilmoqda...</span>
-          <button id="cameraFlipBtn" type="button" onclick="switchCamera()" title="Kamerani almashtirish" aria-label="Kamerani almashtirish">⟳</button>
+        <div class="kiosk-side">
+          <div class="kiosk-header">
+            <p class="eyebrow">Xodimlar bo'limi</p>
+            <h2>Kodingizni kiriting</h2>
+          </div>
+          <div id="selfServiceForm">
+            <input id="employeeCode" type="text" inputmode="numeric" autocomplete="off" placeholder="• • • •" maxlength="4" required class="kiosk-code-input" />
+            <div id="codeEmployeePreview" class="employee-preview"></div>
+            <div id="locationStatus" class="location-badge">📍 Lokatsiya belgilashda olinadi</div>
+            <div class="kiosk-btns">
+              <button id="selfCheckInBtn" type="button" disabled class="kiosk-btn-in">✅ Keldim</button>
+              <button id="selfCheckOutBtn" type="button" disabled class="kiosk-btn-out">🚪 Ketdim</button>
+            </div>
+          </div>
+          <div id="selfMessage" class="self-message" role="status"></div>
         </div>
-        <form id="selfServiceForm" class="self-form">
-          <input id="employeeCode" type="text" inputmode="numeric" autocomplete="off" placeholder="Xodim kodi" maxlength="4" required />
-          <button id="selfCheckInBtn" type="button" disabled>Keldim</button>
-          <button id="selfCheckOutBtn" type="button" class="secondary" disabled>Ketdim</button>
-        </form>
-        <div id="codeEmployeePreview" class="employee-preview"></div>
-        <div id="locationStatus" class="employee-preview">Lokatsiya belgilashda olinadi</div>
-        <div id="selfMessage" class="self-message" role="status"></div>
       </section>
 
       <section class="admin-gate" id="adminGate">
@@ -54,19 +60,19 @@
 
       <section class="workbench" id="adminArea" hidden>
         <section class="summary-grid" id="adminSummary" aria-label="Kunlik ko'rsatkichlar" hidden>
-          <article data-icon="👥">
+          <article data-icon="👥" data-color="blue">
             <span>Bugun kelganlar</span>
             <strong id="todayArrived">0</strong>
           </article>
-          <article data-icon="⏰">
+          <article data-icon="⏰" data-color="yellow">
             <span>Kechikkanlar</span>
             <strong id="lateEmployees">0</strong>
           </article>
-          <article data-icon="❌">
+          <article data-icon="❌" data-color="red">
             <span>Ishga kelmaganlar</span>
             <strong id="todayAbsent">0</strong>
           </article>
-          <article data-icon="✅">
+          <article data-icon="✅" data-color="green">
             <span>Hozir ishda</span>
             <strong id="activeEmployees">0</strong>
           </article>
