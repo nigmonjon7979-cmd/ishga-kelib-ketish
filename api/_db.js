@@ -105,7 +105,7 @@ async function ensureSchema() {
       `,
     ]);
 
-    // Proofs column additions in parallel
+    // Proofs column additions and telegram_state table in parallel
     await Promise.all([
       sql`ALTER TABLE proofs ADD COLUMN IF NOT EXISTS location_lat DOUBLE PRECISION`,
       sql`ALTER TABLE proofs ADD COLUMN IF NOT EXISTS location_lng DOUBLE PRECISION`,
@@ -114,6 +114,18 @@ async function ensureSchema() {
       sql`ALTER TABLE proofs ADD COLUMN IF NOT EXISTS geo_status TEXT DEFAULT 'pending'`,
       sql`ALTER TABLE proofs ADD COLUMN IF NOT EXISTS face_status TEXT DEFAULT 'pending'`,
       sql`ALTER TABLE proofs ADD COLUMN IF NOT EXISTS retention_until TIMESTAMPTZ`,
+      sql`
+        CREATE TABLE IF NOT EXISTS telegram_state (
+          chat_id TEXT PRIMARY KEY,
+          action TEXT NOT NULL,
+          step TEXT NOT NULL DEFAULT 'location',
+          location_lat DOUBLE PRECISION,
+          location_lng DOUBLE PRECISION,
+          location_accuracy DOUBLE PRECISION,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          expires_at TIMESTAMPTZ NOT NULL
+        )
+      `,
     ]);
 
     // Seed geofences and fix sklad radius in parallel
