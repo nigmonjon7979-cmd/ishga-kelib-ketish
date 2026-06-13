@@ -794,6 +794,51 @@ body.dark-mode tr:hover td { background: rgba(255,255,255,0.04); }
 }
 .icon-btn:hover { background: var(--danger); color: #fff; }
 
+/* ─── Branch Group Separator (table) ────────────────────────────── */
+.branch-group-row td {
+  padding: 10px 12px 6px;
+  background: var(--bg);
+  border-bottom: 2px solid var(--accent);
+  border-top: 8px solid var(--bg);
+}
+.branch-group-row:first-child td { border-top: none; }
+
+.branch-group-name {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent-text);
+}
+.branch-group-stats {
+  margin-left: 12px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.branch-group-stats b { color: var(--ink); font-weight: 700; }
+.branch-group-stats .active-count { color: var(--accent); }
+
+/* ─── Employee Cards Wrapper ─────────────────────────────────────── */
+.employee-cards-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+/* ─── Branch Cards Label ─────────────────────────────────────────── */
+.branch-cards-label {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent-text);
+  padding: 10px 2px 4px;
+  border-bottom: 1px solid var(--accent-light);
+  margin-bottom: 2px;
+}
+
 /* ─── Employee Cards ─────────────────────────────────────────────── */
 .employee-card-grid {
   display: grid;

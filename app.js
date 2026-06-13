@@ -535,6 +535,52 @@ function renderClock() {
   });
 }
 
+function buildEmployeeRow(employee) {
+  const row = rowTemplate.content.firstElementChild.cloneNode(true);
+  const record = getRecord(employee.id);
+  const status = statusFor(employee, record);
+  const schedule = getSchedule(employee);
+
+  const photo = row.querySelector("[data-photo]");
+  if (photo) { photo.src = employee.photo || DEFAULT_PHOTO; photo.hidden = false; }
+  row.querySelector("[data-name]").textContent = employee.name;
+  row.querySelector("[data-role]").textContent = [
+    employee.role || "Lavozim kiritilmagan",
+    isEmployeeActive(employee) ? "Faol" : "Nofaol",
+  ].join(" | ");
+  row.querySelector("[data-code]").textContent = employee.code;
+  const phoneCell = row.querySelector("[data-phone]");
+  if (phoneCell) phoneCell.textContent = employee.phone || "--";
+  row.querySelector("[data-location]").textContent = formatSchedule(schedule);
+  row.querySelector("[data-arrival]").textContent = record.arrival || "--:--";
+  row.querySelector("[data-departure]").textContent = record.departure || "--:--";
+  row.querySelector("[data-hours]").textContent = formatDuration(workedMinutes(record));
+  row.querySelector("[data-late]").textContent = record.arrival
+    ? formatDuration(lateMinutes(employee, record))
+    : (isAbsentDeadlinePassed(employee) ? "Ishga kelmagan" : "Kutilyapti");
+
+  const arrivalProofBtn = row.querySelector("[data-arrival-proof]");
+  const departureProofBtn = row.querySelector("[data-departure-proof]");
+  arrivalProofBtn.disabled = !record.arrivalPhoto;
+  departureProofBtn.disabled = !record.departurePhoto;
+  arrivalProofBtn.addEventListener("click", () => showProof(record.arrivalPhoto, `${employee.name} - kelgan dalili`));
+  departureProofBtn.addEventListener("click", () => showProof(record.departurePhoto, `${employee.name} - ketgan dalili`));
+
+  const statusEl = row.querySelector("[data-status]");
+  statusEl.textContent = isEmployeeActive(employee) ? status.label : "Nofaol";
+  statusEl.className = `status ${isEmployeeActive(employee) ? status.className : "waiting"}`.trim();
+
+  const checkinBtn = row.querySelector("[data-checkin]");
+  const checkoutBtn = row.querySelector("[data-checkout]");
+  checkinBtn.disabled = !isEmployeeActive(employee) || Boolean(record.arrival);
+  checkoutBtn.disabled = !isEmployeeActive(employee) || !record.arrival || Boolean(record.departure);
+  checkinBtn.addEventListener("click", () => manualPunch(employee.id, "in"));
+  checkoutBtn.addEventListener("click", () => manualPunch(employee.id, "out"));
+  row.querySelector("[data-delete]").addEventListener("click", () => deleteEmployee(employee.id));
+  row.querySelector(".person").addEventListener("click", () => showEmployeeCard(employee.id));
+  return row;
+}
+
 function render() {
   ensureEmployeeCodes();
   const query = [searchInput?.value || "", globalSearchInput?.value || ""].join(" ").trim().toLowerCase();
@@ -545,54 +591,34 @@ function render() {
 
   body.innerHTML = "";
   renderEmployeeCards(employees);
+
+  // Group employees by branch
+  const groups = new Map();
   employees.forEach((employee) => {
-    const row = rowTemplate.content.firstElementChild.cloneNode(true);
-    const record = getRecord(employee.id);
-    const status = statusFor(employee, record);
-    const schedule = getSchedule(employee);
+    const locId = employee.locationId || "other";
+    if (!groups.has(locId)) groups.set(locId, []);
+    groups.get(locId).push(employee);
+  });
 
-    const photo = row.querySelector("[data-photo]");
-    if (photo) {
-      photo.src = employee.photo || DEFAULT_PHOTO;
-      photo.hidden = false;
-    }
-    row.querySelector("[data-name]").textContent = employee.name;
-    row.querySelector("[data-role]").textContent = [
-      employee.role || "Lavozim kiritilmagan",
-      isEmployeeActive(employee) ? "Faol" : "Nofaol",
-    ].join(" | ");
-    row.querySelector("[data-code]").textContent = employee.code;
-    const phoneCell = row.querySelector("[data-phone]");
-    if (phoneCell) phoneCell.textContent = employee.phone || "--";
-    row.querySelector("[data-location]").textContent = formatSchedule(schedule);
-    row.querySelector("[data-arrival]").textContent = record.arrival || "--:--";
-    row.querySelector("[data-departure]").textContent = record.departure || "--:--";
-    row.querySelector("[data-hours]").textContent = formatDuration(workedMinutes(record));
-    row.querySelector("[data-late]").textContent = record.arrival
-      ? formatDuration(lateMinutes(employee, record))
-      : (isAbsentDeadlinePassed(employee) ? "Ishga kelmagan" : "Kutilyapti");
+  const COLS = 11; // number of <th> columns in the table
+  groups.forEach((groupEmployees, locId) => {
+    const schedule = getSchedule(groupEmployees[0]);
+    const arrived = groupEmployees.filter((e) => getRecord(e.id).arrival).length;
+    const active = groupEmployees.filter((e) => { const r = getRecord(e.id); return r.arrival && !r.departure; }).length;
 
-    const arrivalProofBtn = row.querySelector("[data-arrival-proof]");
-    const departureProofBtn = row.querySelector("[data-departure-proof]");
-    arrivalProofBtn.disabled = !record.arrivalPhoto;
-    departureProofBtn.disabled = !record.departurePhoto;
-    arrivalProofBtn.addEventListener("click", () => showProof(record.arrivalPhoto, `${employee.name} - kelgan dalili`));
-    departureProofBtn.addEventListener("click", () => showProof(record.departurePhoto, `${employee.name} - ketgan dalili`));
+    // Branch separator row
+    const sep = document.createElement("tr");
+    sep.className = "branch-group-row";
+    sep.innerHTML = `<td colspan="${COLS}">
+      <span class="branch-group-name">🏢 ${schedule.name}</span>
+      <span class="branch-group-stats">
+        <b>${arrived}/${groupEmployees.length}</b> kelgan
+        &nbsp;·&nbsp; <b class="active-count">${active}</b> ishda
+      </span>
+    </td>`;
+    body.append(sep);
 
-    const statusEl = row.querySelector("[data-status]");
-    statusEl.textContent = isEmployeeActive(employee) ? status.label : "Nofaol";
-    statusEl.className = `status ${isEmployeeActive(employee) ? status.className : "waiting"}`.trim();
-
-    const checkinBtn = row.querySelector("[data-checkin]");
-    const checkoutBtn = row.querySelector("[data-checkout]");
-    checkinBtn.disabled = !isEmployeeActive(employee) || Boolean(record.arrival);
-    checkoutBtn.disabled = !isEmployeeActive(employee) || !record.arrival || Boolean(record.departure);
-    checkinBtn.addEventListener("click", () => manualPunch(employee.id, "in"));
-    checkoutBtn.addEventListener("click", () => manualPunch(employee.id, "out"));
-    row.querySelector("[data-delete]").addEventListener("click", () => deleteEmployee(employee.id));
-    row.querySelector(".person").addEventListener("click", () => showEmployeeCard(employee.id));
-
-    body.append(row);
+    groupEmployees.forEach((employee) => body.append(buildEmployeeRow(employee)));
   });
 
   renderSummary();
@@ -1637,19 +1663,41 @@ function renderMonthlyTrend(records, totals) {
 function renderEmployeeCards(employees) {
   if (!employeeCards) return;
   employeeCards.innerHTML = "";
-  employees.slice(0, 8).forEach((employee) => {
-    const schedule = getSchedule(employee);
-    const record = getRecord(employee.id);
-    const card = document.createElement("button");
-    card.type = "button";
-    card.className = "employee-mini-card";
-    card.innerHTML = "<img alt='' /><span><strong></strong><small></small></span><b></b>";
-    card.querySelector("img").src = employee.photo || DEFAULT_PHOTO;
-    card.querySelector("strong").textContent = employee.name;
-    card.querySelector("small").textContent = `${employee.phone || "Telefon yo'q"} | ${schedule.name}`;
-    card.querySelector("b").textContent = statusFor(employee, record).label;
-    card.addEventListener("click", () => showEmployeeCard(employee.id));
-    employeeCards.append(card);
+
+  // Group by branch
+  const groups = new Map();
+  employees.forEach((emp) => {
+    const locId = emp.locationId || "other";
+    if (!groups.has(locId)) groups.set(locId, []);
+    groups.get(locId).push(emp);
+  });
+
+  groups.forEach((groupEmployees, locId) => {
+    const branchName = getSchedule(groupEmployees[0]).name;
+    const arrived = groupEmployees.filter((e) => getRecord(e.id).arrival).length;
+
+    const label = document.createElement("div");
+    label.className = "branch-cards-label";
+    label.textContent = `🏢 ${branchName} — ${arrived}/${groupEmployees.length}`;
+    employeeCards.append(label);
+
+    const grid = document.createElement("div");
+    grid.className = "employee-card-grid";
+    groupEmployees.forEach((employee) => {
+      const schedule = getSchedule(employee);
+      const record = getRecord(employee.id);
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "employee-mini-card";
+      card.innerHTML = "<img alt='' /><span><strong></strong><small></small></span><b></b>";
+      card.querySelector("img").src = employee.photo || DEFAULT_PHOTO;
+      card.querySelector("strong").textContent = employee.name;
+      card.querySelector("small").textContent = employee.phone || "Telefon yo'q";
+      card.querySelector("b").textContent = statusFor(employee, record).label;
+      card.addEventListener("click", () => showEmployeeCard(employee.id));
+      grid.append(card);
+    });
+    employeeCards.append(grid);
   });
 }
 
