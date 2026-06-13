@@ -780,45 +780,61 @@ async function handlePhoto({ chatId, message }) {
   }
 
   try {
-    // Use highest-quality photo; get file_id for direct Telegram forwarding
+    // Use highest-quality photo; store file_id in DB (no download needed → instant punch)
     const bestPhoto = photos[photos.length - 1];
     const fileId = bestPhoto.file_id;
     const time = nowTime();
     const day = todayKey();
     const sql = getSql();
 
-    // Download photo for DB storage and get admin list in parallel
-    const [photo, adminRows] = await Promise.all([
-      downloadTelegramPhoto(fileId),
+    // Get admin list while punching (parallel)
+    const [result, adminRows] = await Promise.all([
+      doPunch({
+        employee,
+        action: state.action,
+        day,
+        time,
+        photo: `telegram:${fileId}`,
+        lat: Number(state.location_lat),
+        lng: Number(state.location_lng),
+        accuracy: state.location_accuracy != null ? Number(state.location_accuracy) : null,
+        chatId,
+      }),
       sql`SELECT chat_id AS "chatId" FROM telegram_access WHERE phone LIKE 'admin:%' AND status = 'allowed'`,
     ]);
 
-    const result = await doPunch({
-      employee,
-      action: state.action,
-      day,
-      time,
-      photo,
-      lat: Number(state.location_lat),
-      lng: Number(state.location_lng),
-      accuracy: state.location_accuracy != null ? Number(state.location_accuracy) : null,
-      chatId,
-    });
-
-    await clearState(chatId);
-
     if (!result.ok) {
-      let msg;
       if (result.geoStatus === "outside") {
-        msg = `❌ Lokatsiya filial radiusiga mos emas.\nMasofa: ${Math.round(result.distance)} m, ruxsat: ${result.radius} m\n\nTo'g'ri joydan qayta urining.`;
+        // Re-ask location instead of forcing full restart
+        await setState(chatId, { action: state.action, step: "location" });
+        await sendTelegram("sendMessage", {
+          chat_id: chatId,
+          text: `❌ Siz filial maydonidan tashqaridasiz.\nMasofa: ${Math.round(result.distance)} m, ruxsat: ${result.radius} m\n\n📍 To'g'ri joydan qaytadan lokatsiya yuboring:`,
+          reply_markup: {
+            keyboard: [[{ text: "📍 Lokatsiyamni yuborish", request_location: true }], [{ text: "❌ Bekor qilish" }]],
+            resize_keyboard: true,
+            one_time_keyboard: true,
+          },
+        });
       } else if (result.geoStatus === "low_accuracy") {
-        msg = `❌ GPS aniqligi past.\nOchiq joyga chiqib, qayta urining.`;
+        await setState(chatId, { action: state.action, step: "location" });
+        await sendTelegram("sendMessage", {
+          chat_id: chatId,
+          text: `❌ GPS aniqligi past (${Math.round(state.location_accuracy || 0)} m).\n\nOchiq joyga chiqib, qayta lokatsiya yuboring:`,
+          reply_markup: {
+            keyboard: [[{ text: "📍 Lokatsiyamni yuborish", request_location: true }], [{ text: "❌ Bekor qilish" }]],
+            resize_keyboard: true,
+            one_time_keyboard: true,
+          },
+        });
       } else {
-        msg = `❌ ${result.error}`;
+        await clearState(chatId);
+        await sendTelegram("sendMessage", { chat_id: chatId, text: `❌ ${result.error}`, reply_markup: employeeKeyboard() });
       }
-      await sendTelegram("sendMessage", { chat_id: chatId, text: msg, reply_markup: employeeKeyboard() });
       return true;
     }
+
+    await clearState(chatId);
 
     const label = state.action === "in" ? "✅ Keldi" : "🏁 Ketdi";
     const lateMsg = state.action === "in" && result.lateMinutes > 0
@@ -1014,9 +1030,39 @@ async function handleEmployeeMenu(chatId, text) {
   }
 
   if (text === "📊 Oylik davomatim") {
+    const employee = await employeeByChat(chatId);
+    if (!employee) {
+      await sendTelegram("sendMessage", { chat_id: chatId, text: "Xodim topilmadi. /start bosing.", reply_markup: employeeKeyboard() });
+      return true;
+    }
+    const sql = getSql();
+    const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Tashkent" }));
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const monthStart = `${year}-${month}-01`;
+    const monthEnd = `${year}-${month}-${String(new Date(year, now.getMonth() + 1, 0).getDate()).padStart(2, "0")}`;
+    const rows = await sql`
+      SELECT day, arrival, departure FROM attendance
+      WHERE employee_id = ${employee.id} AND day >= ${monthStart} AND day <= ${monthEnd}
+      ORDER BY day ASC
+    `;
+    const totalDays = rows.length;
+    const totalWorked = rows.reduce((sum, r) => sum + workedMinutes(r), 0);
+    const lines = rows.map((r) => {
+      const late = Math.max(0, (minutesFromTime(r.arrival) || 0) - (minutesFromTime(getSchedule(employee).start) || 0));
+      return `${r.day}: ${r.arrival || "--:--"} → ${r.departure || "hali ketmagan"}${late > 0 ? ` (+${late} daq)` : ""}`;
+    });
     await sendTelegram("sendMessage", {
       chat_id: chatId,
-      text: "📊 Oylik davomat hisoboti tez orada qo'shiladi.",
+      text: [
+        `📊 ${year}-${month} oylik davomat`,
+        `👤 ${employee.name}`,
+        "",
+        `📅 Kelgan kunlar: ${totalDays}`,
+        `🕒 Jami ish vaqti: ${formatDuration(totalWorked)}`,
+        "",
+        ...(lines.length ? lines : ["Hali davomat yo'q."]),
+      ].join("\n"),
       reply_markup: employeeKeyboard(),
     });
     return true;
@@ -1243,6 +1289,17 @@ module.exports = async function handler(req, res) {
     const contactPhone = message.contact?.phone_number;
 
     const sql = getSql();
+
+    // /menu or /help
+    if (text === "/menu" || text === "/help") {
+      if (await isAllowedChat(chatId)) {
+        await sendMenu(chatId);
+      } else {
+        await sendTelegram("sendMessage", { chat_id: chatId, text: "Kirish ruxsati yo'q. /start bosing." });
+      }
+      json(res, 200, { ok: true });
+      return;
+    }
 
     // /start
     if (text.startsWith("/start")) {

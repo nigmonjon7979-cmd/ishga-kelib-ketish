@@ -35,8 +35,27 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    let photo = rows[0].photo;
+    // Telegram bot punches store "telegram:{file_id}" — resolve on demand
+    if (photo && photo.startsWith("telegram:")) {
+      try {
+        const fileId = photo.slice("telegram:".length);
+        const token = process.env.TELEGRAM_BOT_TOKEN;
+        const fileRes = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${fileId}`);
+        const fileData = await fileRes.json();
+        const filePath = fileData.result?.file_path;
+        if (filePath) {
+          const photoRes = await fetch(`https://api.telegram.org/file/bot${token}/${filePath}`);
+          const buffer = await photoRes.arrayBuffer();
+          photo = `data:image/jpeg;base64,${Buffer.from(buffer).toString("base64")}`;
+        }
+      } catch {
+        photo = "";
+      }
+    }
+
     json(res, 200, {
-      photo: rows[0].photo,
+      photo,
       location: rows[0].locationLat !== null && rows[0].locationLng !== null ? {
         lat: rows[0].locationLat,
         lng: rows[0].locationLng,
