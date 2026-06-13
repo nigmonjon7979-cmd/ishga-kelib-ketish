@@ -780,10 +780,18 @@ async function handlePhoto({ chatId, message }) {
   }
 
   try {
-    const fileId = photos[photos.length - 1].file_id;
-    const photo = await downloadTelegramPhoto(fileId);
+    // Use highest-quality photo; get file_id for direct Telegram forwarding
+    const bestPhoto = photos[photos.length - 1];
+    const fileId = bestPhoto.file_id;
     const time = nowTime();
     const day = todayKey();
+    const sql = getSql();
+
+    // Download photo for DB storage and get admin list in parallel
+    const [photo, adminRows] = await Promise.all([
+      downloadTelegramPhoto(fileId),
+      sql`SELECT chat_id AS "chatId" FROM telegram_access WHERE phone LIKE 'admin:%' AND status = 'allowed'`,
+    ]);
 
     const result = await doPunch({
       employee,
@@ -817,31 +825,44 @@ async function handlePhoto({ chatId, message }) {
       ? `\n⚠️ Kechikish: ${result.lateMinutes} daqiqa`
       : "";
 
+    // Confirm to employee immediately
     await sendTelegram("sendMessage", {
       chat_id: chatId,
       text: `${label}\n👤 ${employee.name}\n⏰ ${time}${lateMsg}\n\nYaxshi ish kuni! 💼`,
       reply_markup: employeeKeyboard(),
     });
 
-    // Notify admin with photo — fire and forget
-    const adminId = adminChatId();
-    if (adminId && String(chatId) !== adminId) {
-      const lat = Number(state.location_lat);
-      const lng = Number(state.location_lng);
-      const accuracy = state.location_accuracy != null ? Number(state.location_accuracy) : null;
-      const caption = [
-        `👤 Xodim: ${employee.name}`,
-        `📌 Holat: ${label}`,
-        `📅 Sana: ${day}`,
-        `⏰ Vaqt: ${time}`,
-        state.action === "in" && result.lateMinutes > 0 ? `⚠️ Kechikish: ${result.lateMinutes} daqiqa` : "",
-        Number.isFinite(lat) && Number.isFinite(lng) ? `📍 Lokatsiya: https://maps.google.com/?q=${lat},${lng}` : "",
-        Number.isFinite(accuracy) && accuracy > 0 ? `🎯 Aniqlik: ${Math.round(accuracy)} m` : "",
-        Number.isFinite(result.distance)
-          ? `🟢 GeoFence: mos (${Math.round(result.distance)} m / ${result.radius} m)`
-          : "",
-      ].filter(Boolean).join("\n");
-      sendPhotoToChat(adminId, photo, caption).catch((err) => console.error("Admin photo notify failed:", err));
+    // Build admin caption
+    const lat = Number(state.location_lat);
+    const lng = Number(state.location_lng);
+    const accuracy = state.location_accuracy != null ? Number(state.location_accuracy) : null;
+    const caption = [
+      `👤 Xodim: ${employee.name}`,
+      `📌 Holat: ${label}`,
+      `📅 Sana: ${day}`,
+      `⏰ Vaqt: ${time}`,
+      state.action === "in" && result.lateMinutes > 0 ? `⚠️ Kechikish: ${result.lateMinutes} daqiqa` : "",
+      Number.isFinite(lat) && Number.isFinite(lng) ? `📍 Lokatsiya: https://maps.google.com/?q=${lat},${lng}` : "",
+      Number.isFinite(accuracy) && accuracy > 0 ? `🎯 Aniqlik: ${Math.round(accuracy)} m` : "",
+      Number.isFinite(result.distance)
+        ? `🟢 GeoFence: mos (${Math.round(result.distance)} m / ${result.radius} m)`
+        : "",
+    ].filter(Boolean).join("\n");
+
+    // Collect all admin chat IDs (super admin + DB admins), deduplicated
+    const superAdmin = adminChatId();
+    const allAdminIds = new Set([
+      ...(superAdmin ? [superAdmin] : []),
+      ...adminRows.map((r) => String(r.chatId)),
+    ].filter((id) => id && String(id) !== String(chatId)));
+
+    // Notify all admins using file_id directly (no re-upload = instant delivery)
+    for (const adminId of allAdminIds) {
+      sendTelegram("sendPhoto", {
+        chat_id: adminId,
+        photo: fileId,
+        caption,
+      }).catch((err) => console.error(`Admin notify failed (${adminId}):`, err));
     }
   } catch (err) {
     console.error("Telegram punch error:", err);
