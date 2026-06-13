@@ -327,16 +327,25 @@ async function startCamera() {
   }
 
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
-      audio: false,
-    });
+    // Try rear camera first (exact), fall back to ideal, then any camera
+    let stream;
+    const constraints = [
+      { video: { facingMode: { exact: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+      { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+      { video: true, audio: false },
+    ];
+    for (const c of constraints) {
+      try { stream = await navigator.mediaDevices.getUserMedia(c); break; } catch {}
+    }
+    if (!stream) throw new Error("Kamera ochilmadi");
     cameraPreview.srcObject = stream;
     await cameraPreview.play();
     cameraReady = true;
     selfCheckInBtn.disabled = false;
     selfCheckOutBtn.disabled = false;
-    cameraStatus.textContent = "Kamera tayyor";
+    const track = stream.getVideoTracks()[0];
+    const facing = track?.getSettings?.()?.facingMode || "";
+    cameraStatus.textContent = facing === "environment" ? "Orqa kamera tayyor" : "Kamera tayyor";
   } catch {
     cameraStatus.textContent = "Kamera ruxsati berilmadi";
     showSelfMessage("Keldim/Ketdim qilish uchun kameraga ruxsat bering.", "error");
