@@ -794,49 +794,111 @@ body.dark-mode tr:hover td { background: rgba(255,255,255,0.04); }
 }
 .icon-btn:hover { background: var(--danger); color: #fff; }
 
-/* ─── Branch Group Separator (table) ────────────────────────────── */
+/* ─── Branch Group Header (table) ───────────────────────────────── */
 .branch-group-row td {
-  padding: 10px 12px 6px;
-  background: var(--bg);
-  border-bottom: 2px solid var(--accent);
-  border-top: 8px solid var(--bg);
+  padding: 0;
+  background: transparent;
+  border: none;
+  padding-top: 14px;
 }
-.branch-group-row:first-child td { border-top: none; }
+.branch-group-row:first-child td { padding-top: 0; }
 
-.branch-group-name {
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--accent-text);
+.bgh-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius-sm);
+  flex-wrap: wrap;
 }
-.branch-group-stats {
-  margin-left: 12px;
+
+.bgh-left  { display: flex; align-items: center; gap: 8px; }
+.bgh-right { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+.bgh-icon { font-size: 16px; line-height: 1; }
+.bgh-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.bgh-time {
   font-size: 11px;
   color: var(--muted);
+  font-weight: 500;
 }
-.branch-group-stats b { color: var(--ink); font-weight: 700; }
-.branch-group-stats .active-count { color: var(--accent); }
+
+.bgh-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.bgh-pill--blue   { background: var(--accent-2-light); color: var(--accent-2); }
+.bgh-pill--green  { background: var(--accent-light);   color: var(--accent-text); }
+.bgh-pill--yellow { background: var(--warn-light);     color: var(--warn); }
+.bgh-pill--red    { background: var(--danger-light);   color: var(--danger); }
+
+.bgh-bar {
+  height: 3px;
+  background: var(--line);
+  border-radius: 0 0 3px 0;
+  overflow: hidden;
+  margin: 4px 0 0;
+  border-left: 4px solid transparent;
+}
+.bgh-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+  border-radius: 999px;
+  transition: width 700ms cubic-bezier(.4,0,.2,1);
+  min-width: 4px;
+}
 
 /* ─── Employee Cards Wrapper ─────────────────────────────────────── */
 .employee-cards-wrap {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-bottom: 14px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
+
+.branch-card-section { display: flex; flex-direction: column; gap: 8px; }
 
 /* ─── Branch Cards Label ─────────────────────────────────────────── */
 .branch-cards-label {
-  grid-column: 1 / -1;
-  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius-sm);
+  flex-wrap: wrap;
+}
+
+.bcl-left  { display: flex; align-items: center; gap: 8px; }
+.bcl-right { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+
+.bcl-name {
+  font-size: 12px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--accent-text);
-  padding: 10px 2px 4px;
-  border-bottom: 1px solid var(--accent-light);
-  margin-bottom: 2px;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.bcl-time {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 500;
 }
 
 /* ─── Employee Cards ─────────────────────────────────────────────── */
@@ -848,11 +910,10 @@ body.dark-mode tr:hover td { background: rgba(255,255,255,0.04); }
 }
 
 .employee-mini-card {
-  display: grid;
-  grid-template-columns: 34px minmax(0,1fr);
-  gap: 8px;
+  display: flex;
   align-items: center;
-  min-height: 62px;
+  gap: 10px;
+  min-height: 64px;
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -866,17 +927,69 @@ body.dark-mode tr:hover td { background: rgba(255,255,255,0.04); }
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(22,163,74,0.08);
 }
+
+.emc--late    { border-left: 3px solid var(--warn); }
+.emc--absent  { border-left: 3px solid var(--danger); opacity: 0.8; }
+.emc--out     { border-left: 3px solid var(--accent-2); }
+.emc--ok      { border-left: 3px solid var(--accent); }
+.emc--waiting { border-left: 3px solid var(--line); }
+
 .employee-mini-card img {
-  grid-row: span 2;
-  width: 34px;
-  height: 34px;
-  border-radius: 6px;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
   object-fit: cover;
   background: var(--accent-light);
+  flex-shrink: 0;
 }
-.employee-mini-card strong, .employee-mini-card small, .employee-mini-card b { display: block; }
-.employee-mini-card small { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.employee-mini-card b { grid-column: 2; font-size: 11px; color: var(--accent); font-weight: 600; }
+
+.emc-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.employee-mini-card strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.employee-mini-card small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.emc-time {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.emc-arrival {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.employee-mini-card b {
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
 
 /* ─── Employee Detail ────────────────────────────────────────────── */
 .employee-detail { display: grid; grid-template-columns: 88px minmax(0,1fr); gap: 16px; align-items: start; }

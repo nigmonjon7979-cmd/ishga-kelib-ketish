@@ -600,21 +600,33 @@ function render() {
     groups.get(locId).push(employee);
   });
 
-  const COLS = 11; // number of <th> columns in the table
-  groups.forEach((groupEmployees, locId) => {
+  const COLS = 11;
+  groups.forEach((groupEmployees) => {
     const schedule = getSchedule(groupEmployees[0]);
+    const total   = groupEmployees.length;
     const arrived = groupEmployees.filter((e) => getRecord(e.id).arrival).length;
-    const active = groupEmployees.filter((e) => { const r = getRecord(e.id); return r.arrival && !r.departure; }).length;
+    const active  = groupEmployees.filter((e) => { const r = getRecord(e.id); return r.arrival && !r.departure; }).length;
+    const late    = groupEmployees.filter((e) => lateMinutes(e, getRecord(e.id)) > 0).length;
+    const absent  = groupEmployees.filter((e) => !getRecord(e.id).arrival && isAbsentDeadlinePassed(e)).length;
+    const pct     = total ? Math.round((arrived / total) * 100) : 0;
 
-    // Branch separator row
     const sep = document.createElement("tr");
     sep.className = "branch-group-row";
     sep.innerHTML = `<td colspan="${COLS}">
-      <span class="branch-group-name">🏢 ${schedule.name}</span>
-      <span class="branch-group-stats">
-        <b>${arrived}/${groupEmployees.length}</b> kelgan
-        &nbsp;·&nbsp; <b class="active-count">${active}</b> ishda
-      </span>
+      <div class="bgh-inner">
+        <div class="bgh-left">
+          <span class="bgh-icon">🏢</span>
+          <span class="bgh-name">${schedule.name}</span>
+          <span class="bgh-time">${schedule.start}${schedule.end ? " – " + schedule.end : ""}</span>
+        </div>
+        <div class="bgh-right">
+          <span class="bgh-pill bgh-pill--blue">${arrived}/${total} kelgan</span>
+          ${active  ? `<span class="bgh-pill bgh-pill--green">${active} ishda</span>` : ""}
+          ${late    ? `<span class="bgh-pill bgh-pill--yellow">${late} kechikkan</span>` : ""}
+          ${absent  ? `<span class="bgh-pill bgh-pill--red">${absent} kelmagan</span>` : ""}
+        </div>
+      </div>
+      <div class="bgh-bar"><div class="bgh-bar-fill" style="width:${pct}%"></div></div>
     </td>`;
     body.append(sep);
 
@@ -1672,32 +1684,58 @@ function renderEmployeeCards(employees) {
     groups.get(locId).push(emp);
   });
 
-  groups.forEach((groupEmployees, locId) => {
-    const branchName = getSchedule(groupEmployees[0]).name;
+  groups.forEach((groupEmployees) => {
+    const schedule = getSchedule(groupEmployees[0]);
+    const total   = groupEmployees.length;
     const arrived = groupEmployees.filter((e) => getRecord(e.id).arrival).length;
+    const active  = groupEmployees.filter((e) => { const r = getRecord(e.id); return r.arrival && !r.departure; }).length;
+    const absent  = groupEmployees.filter((e) => !getRecord(e.id).arrival && isAbsentDeadlinePassed(e)).length;
+    const pct     = total ? Math.round((arrived / total) * 100) : 0;
+
+    const section = document.createElement("div");
+    section.className = "branch-card-section";
 
     const label = document.createElement("div");
     label.className = "branch-cards-label";
-    label.textContent = `🏢 ${branchName} — ${arrived}/${groupEmployees.length}`;
-    employeeCards.append(label);
+    label.innerHTML = `
+      <div class="bcl-left">
+        <span class="bcl-name">🏢 ${schedule.name}</span>
+        <span class="bcl-time">${schedule.start}${schedule.end ? " – " + schedule.end : ""}</span>
+      </div>
+      <div class="bcl-right">
+        <span class="bgh-pill bgh-pill--blue">${arrived}/${total}</span>
+        ${active ? `<span class="bgh-pill bgh-pill--green">${active} ishda</span>` : ""}
+        ${absent ? `<span class="bgh-pill bgh-pill--red">${absent} yo'q</span>` : ""}
+      </div>`;
+    section.append(label);
 
     const grid = document.createElement("div");
     grid.className = "employee-card-grid";
     groupEmployees.forEach((employee) => {
-      const schedule = getSchedule(employee);
       const record = getRecord(employee.id);
+      const st = statusFor(employee, record);
       const card = document.createElement("button");
       card.type = "button";
-      card.className = "employee-mini-card";
-      card.innerHTML = "<img alt='' /><span><strong></strong><small></small></span><b></b>";
+      card.className = `employee-mini-card emc--${st.className || "ok"}`;
+      card.innerHTML = `
+        <img alt="" />
+        <div class="emc-info">
+          <strong></strong>
+          <small></small>
+        </div>
+        <div class="emc-time">
+          <span class="emc-arrival">${record.arrival || "--:--"}</span>
+          <b class="status ${st.className}"></b>
+        </div>`;
       card.querySelector("img").src = employee.photo || DEFAULT_PHOTO;
       card.querySelector("strong").textContent = employee.name;
-      card.querySelector("small").textContent = employee.phone || "Telefon yo'q";
-      card.querySelector("b").textContent = statusFor(employee, record).label;
+      card.querySelector("small").textContent = employee.role || "Xodim";
+      card.querySelector("b").textContent = st.label;
       card.addEventListener("click", () => showEmployeeCard(employee.id));
       grid.append(card);
     });
-    employeeCards.append(grid);
+    section.append(grid);
+    employeeCards.append(section);
   });
 }
 
