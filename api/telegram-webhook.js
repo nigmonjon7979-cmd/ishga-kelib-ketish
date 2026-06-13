@@ -168,6 +168,19 @@ async function downloadTelegramPhoto(fileId) {
   return `data:image/jpeg;base64,${Buffer.from(buffer).toString("base64")}`;
 }
 
+async function sendPhotoToChat(chatId, photoDataUrl, caption) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) return;
+  const [header, base64] = photoDataUrl.split(",");
+  const mime = header.match(/data:(.*?);base64/)?.[1] || "image/jpeg";
+  const form = new FormData();
+  form.append("chat_id", String(chatId));
+  form.append("caption", caption);
+  form.append("photo", new Blob([Buffer.from(base64, "base64")], { type: mime }), "proof.jpg");
+  const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: "POST", body: form });
+  if (!res.ok) throw new Error(`sendPhoto failed: ${await res.text()}`);
+}
+
 // ─── State management (for multi-step punch flow) ────────────────────────────
 
 async function getState(chatId) {
@@ -668,20 +681,25 @@ async function handlePhoto({ chatId, message }) {
       reply_markup: employeeKeyboard(),
     });
 
-    // Notify admin — fire and forget
+    // Notify admin with photo — fire and forget
     const adminId = adminChatId();
     if (adminId && String(chatId) !== adminId) {
-      sendTelegram("sendMessage", {
-        chat_id: adminId,
-        text: [
-          label,
-          `👤 ${employee.name}`,
-          `📅 ${day}  ⏰ ${time}`,
-          state.action === "in" && result.lateMinutes > 0 ? `⚠️ ${result.lateMinutes} daqiqa kechikdi` : "",
-          `📱 Telegram orqali`,
-          Number.isFinite(result.distance) ? `📍 ${Math.round(result.distance)} m / ${result.radius} m` : "",
-        ].filter(Boolean).join("\n"),
-      }).catch((err) => console.error("Admin notify failed:", err));
+      const lat = Number(state.location_lat);
+      const lng = Number(state.location_lng);
+      const accuracy = state.location_accuracy != null ? Number(state.location_accuracy) : null;
+      const caption = [
+        `👤 Xodim: ${employee.name}`,
+        `📌 Holat: ${label}`,
+        `📅 Sana: ${day}`,
+        `⏰ Vaqt: ${time}`,
+        state.action === "in" && result.lateMinutes > 0 ? `⚠️ Kechikish: ${result.lateMinutes} daqiqa` : "",
+        Number.isFinite(lat) && Number.isFinite(lng) ? `📍 Lokatsiya: https://maps.google.com/?q=${lat},${lng}` : "",
+        Number.isFinite(accuracy) && accuracy > 0 ? `🎯 Aniqlik: ${Math.round(accuracy)} m` : "",
+        Number.isFinite(result.distance)
+          ? `🟢 GeoFence: mos (${Math.round(result.distance)} m / ${result.radius} m)`
+          : "",
+      ].filter(Boolean).join("\n");
+      sendPhotoToChat(adminId, photo, caption).catch((err) => console.error("Admin photo notify failed:", err));
     }
   } catch (err) {
     console.error("Telegram punch error:", err);
