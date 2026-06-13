@@ -227,19 +227,16 @@ async function doPunch({ employee, action, day, time, photo, lat, lng, accuracy,
     return { ok: false, geoStatus, distance, radius, geofenceName: geofence?.name };
   }
 
-  const existingRows = await sql`
-    SELECT arrival, departure FROM attendance WHERE day = ${day} AND employee_id = ${employee.id} LIMIT 1
+  const lastPunchRows = await sql`
+    SELECT type FROM proofs WHERE employee_id = ${employee.id} AND day = ${day} ORDER BY saved_at DESC LIMIT 1
   `;
-  const existing = existingRows[0] || {};
+  const lastType = lastPunchRows[0]?.type;
 
-  if (action === "in" && existing.arrival) {
-    return { ok: false, error: `${employee.name} bugun ${existing.arrival} da kelgan deb yozilgan.` };
+  if (action === "in" && lastType === "arrival") {
+    return { ok: false, error: `Siz hozir ishdasiz. Avval "Ketdim" tugmasini bosing.` };
   }
-  if (action === "out" && !existing.arrival) {
-    return { ok: false, error: `Avval "Keldim" tugmasini bosish kerak.` };
-  }
-  if (action === "out" && existing.departure) {
-    return { ok: false, error: `${employee.name} bugun ${existing.departure} da ketgan deb yozilgan.` };
+  if (action === "out" && lastType !== "arrival") {
+    return { ok: false, error: `Avval "Keldim" tugmasini bosing.` };
   }
 
   const proofId = randomUUID();
@@ -247,8 +244,8 @@ async function doPunch({ employee, action, day, time, photo, lat, lng, accuracy,
   const deviceId = `telegram:${chatId}`;
 
   const attendanceOp = action === "in"
-    ? sql`INSERT INTO attendance (day, employee_id, arrival, arrival_photo_id, arrival_saved_at) VALUES (${day}, ${employee.id}, ${time}, ${proofId}, NOW()) ON CONFLICT (day, employee_id) DO UPDATE SET arrival = EXCLUDED.arrival, arrival_photo_id = EXCLUDED.arrival_photo_id, arrival_saved_at = NOW()`
-    : sql`UPDATE attendance SET departure = ${time}, departure_photo_id = ${proofId}, departure_saved_at = NOW() WHERE day = ${day} AND employee_id = ${employee.id}`;
+    ? sql`INSERT INTO attendance (day, employee_id, arrival, arrival_photo_id, arrival_saved_at) VALUES (${day}, ${employee.id}, ${time}, ${proofId}, NOW()) ON CONFLICT (day, employee_id) DO UPDATE SET arrival = COALESCE(attendance.arrival, EXCLUDED.arrival), arrival_photo_id = COALESCE(attendance.arrival_photo_id, EXCLUDED.arrival_photo_id), arrival_saved_at = COALESCE(attendance.arrival_saved_at, EXCLUDED.arrival_saved_at)`
+    : sql`INSERT INTO attendance (day, employee_id, arrival, departure, departure_photo_id, departure_saved_at) VALUES (${day}, ${employee.id}, ${time}, ${time}, ${proofId}, NOW()) ON CONFLICT (day, employee_id) DO UPDATE SET departure = EXCLUDED.departure, departure_photo_id = EXCLUDED.departure_photo_id, departure_saved_at = NOW()`;
 
   await Promise.all([
     sql`INSERT INTO proofs (id, employee_id, day, type, punch_time, photo, location_lat, location_lng, location_accuracy, device_id, geo_status, face_status, retention_until) VALUES (${proofId}, ${employee.id}, ${day}, ${proofType}, ${time}, ${photo}, ${lat}, ${lng}, ${Number.isFinite(accuracy) ? accuracy : null}, ${deviceId}, 'ok', 'pending', NOW() + INTERVAL '1 year')`,

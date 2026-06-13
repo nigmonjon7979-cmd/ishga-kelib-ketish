@@ -154,27 +154,27 @@ module.exports = async function handler(req, res) {
       return;
     }
 
-    const existingRows = await sql`
-      SELECT arrival, departure FROM attendance WHERE day = ${day} AND employee_id = ${employee.id} LIMIT 1
+    // Check last punch to allow multiple in/out per day
+    const lastPunchRows = await sql`
+      SELECT type FROM proofs WHERE employee_id = ${employee.id} AND day = ${day} ORDER BY saved_at DESC LIMIT 1
     `;
-    const existing = existingRows[0] || {};
+    const lastType = lastPunchRows[0]?.type;
 
-    if (action === "in" && existing.arrival) {
-      json(res, 409, { error: `${employee.name} bugun ${existing.arrival} da kelgan deb yozilgan.` }); return;
+    if (action === "in" && lastType === "arrival") {
+      json(res, 409, { error: `${employee.name} hozir ishda. Avval "Ketdim" tugmasini bosing.` }); return;
     }
-    if (action === "out" && !existing.arrival) {
+    if (action === "out" && lastType !== "arrival") {
       json(res, 409, { error: `${employee.name} avval "Keldim" tugmasini bosishi kerak.` }); return;
-    }
-    if (action === "out" && existing.departure) {
-      json(res, 409, { error: `${employee.name} bugun ${existing.departure} da ketgan deb yozilgan.` }); return;
     }
 
     const proofId = randomUUID();
     const proofType = action === "in" ? "arrival" : "departure";
 
+    // For "in": set arrival only on first punch (COALESCE keeps original)
+    // For "out": always update departure to the latest check-out time
     const attendanceOp = action === "in"
-      ? sql`INSERT INTO attendance (day, employee_id, arrival, arrival_photo_id, arrival_saved_at) VALUES (${day}, ${employee.id}, ${time}, ${proofId}, NOW()) ON CONFLICT (day, employee_id) DO UPDATE SET arrival = EXCLUDED.arrival, arrival_photo_id = EXCLUDED.arrival_photo_id, arrival_saved_at = NOW(), departure = NULL, departure_photo_id = NULL, departure_saved_at = NULL`
-      : sql`UPDATE attendance SET departure = ${time}, departure_photo_id = ${proofId}, departure_saved_at = NOW() WHERE day = ${day} AND employee_id = ${employee.id}`;
+      ? sql`INSERT INTO attendance (day, employee_id, arrival, arrival_photo_id, arrival_saved_at) VALUES (${day}, ${employee.id}, ${time}, ${proofId}, NOW()) ON CONFLICT (day, employee_id) DO UPDATE SET arrival = COALESCE(attendance.arrival, EXCLUDED.arrival), arrival_photo_id = COALESCE(attendance.arrival_photo_id, EXCLUDED.arrival_photo_id), arrival_saved_at = COALESCE(attendance.arrival_saved_at, EXCLUDED.arrival_saved_at)`
+      : sql`INSERT INTO attendance (day, employee_id, arrival, departure, departure_photo_id, departure_saved_at) VALUES (${day}, ${employee.id}, ${time}, ${time}, ${proofId}, NOW()) ON CONFLICT (day, employee_id) DO UPDATE SET departure = EXCLUDED.departure, departure_photo_id = EXCLUDED.departure_photo_id, departure_saved_at = NOW()`;
 
     // Save proof + attendance + device update in parallel
     await Promise.all([
