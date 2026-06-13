@@ -398,13 +398,14 @@ label {
 }
 
 .summary-grid strong {
-  font-size: 36px;
+  font-size: clamp(18px, 2.2vw, 34px);
   font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
   display: block;
   margin-top: 6px;
   color: var(--ink);
+  word-break: break-word;
 }
 
 .summary-grid article[data-color="green"] strong { color: var(--accent); }
@@ -481,10 +482,10 @@ label {
 .date-filter { width: min(200px, 100%); color: var(--muted); }
 
 /* ─── Workbench / Admin Layout ───────────────────────────────────── */
-.workbench { display: grid; grid-template-columns: 300px minmax(0,1fr); gap: 16px; align-items: start; }
+.workbench { display: flex; flex-direction: column; gap: 16px; }
 .workbench[hidden] { display: none; }
 
-.dashboard-view { grid-column: 1 / -1; display: grid; gap: 16px; }
+.dashboard-view { display: grid; gap: 16px; }
 .dashboard-view[hidden], .employees-view[hidden] { display: none; }
 
 .employees-view {
