@@ -612,7 +612,11 @@ function setAdminOpen(isOpen) {
   adminArea.hidden = !isOpen;
   adminGate.hidden = isOpen;
   if (adminSummary) adminSummary.hidden = !isOpen;
-  if (isOpen) switchDashboardView("dashboard");
+  if (isOpen) {
+    switchDashboardView("dashboard");
+    renderBranchQr();
+    renderGeofencePanel();
+  }
   if (!isOpen) adminPinInput.value = "";
 }
 
@@ -820,8 +824,6 @@ function renderSummary() {
   renderLiveLocationStats(records);
   renderMonthlyTrend(records, { arrived, late, absent, active, totalMinutes, totalLateMinutes, attendancePercent });
   renderFeaturePanels(records, { arrived, late, absent, active, totalMinutes, totalLateMinutes, attendancePercent });
-  renderBranchQr();
-  renderGeofencePanel();
   renderSuspiciousList();
 }
 
@@ -1905,9 +1907,9 @@ async function importEmployeesFromFile(file) {
 
   try {
     if (serverMode) {
-      for (const employee of employees) {
-        await apiRequest("/employees", { method: "POST", body: JSON.stringify(employee) });
-      }
+      await Promise.all(employees.map((employee) =>
+        apiRequest("/employees", { method: "POST", body: JSON.stringify(employee) })
+      ));
       await loadServerState();
     } else {
       employees.forEach((employee) => {
@@ -1966,8 +1968,13 @@ form.addEventListener("submit", async (event) => {
   }
 });
 
-searchInput.addEventListener("input", render);
-globalSearchInput?.addEventListener("input", render);
+let searchDebounce;
+function debouncedRender() {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(render, 200);
+}
+searchInput.addEventListener("input", debouncedRender);
+globalSearchInput?.addEventListener("input", debouncedRender);
 dashboardTabs.forEach((button) => {
   button.addEventListener("click", () => switchDashboardView(button.dataset.dashboardTab));
 });
@@ -2093,10 +2100,15 @@ loadServerState().catch(() => {
   showAdminMessage("Neon server ulanmagan. Hozir lokal zaxira rejimida ishlayapti.", "warn");
 });
 startCamera();
+
+// Clock updates every second — lightweight
+setInterval(renderClock, 1000);
+
+// Summary (heavy: 15+ renders) only every 60s, not every 1s
 setInterval(() => {
-  renderClock();
-  renderSummary();
-}, 1000);
+  if (!adminArea.hidden) renderSummary();
+}, 60000);
+
 setInterval(() => {
   if (serverMode && !adminArea.hidden) {
     if (geofencePanel?.contains(document.activeElement)) return;
