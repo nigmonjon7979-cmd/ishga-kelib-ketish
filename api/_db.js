@@ -105,6 +105,9 @@ async function ensureSchema() {
       `,
     ]);
 
+    // Face enrollment column for employees
+    await sql`ALTER TABLE employees ADD COLUMN IF NOT EXISTS face_file_id TEXT`;
+
     // Proofs column additions and telegram_state table in parallel
     await Promise.all([
       sql`ALTER TABLE proofs ADD COLUMN IF NOT EXISTS location_lat DOUBLE PRECISION`,

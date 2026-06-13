@@ -120,6 +120,7 @@ function employeeKeyboard() {
       [{ text: "👤 Profilim" }, { text: "📅 Bugungi davomatim" }],
       [{ text: "📊 Oylik davomatim" }, { text: "📝 Kechikish sababi" }],
       [{ text: "🏖 Ta'til so'rash" }, { text: "📞 Admin bilan bog'lanish" }],
+      [{ text: "📸 Yuzni yangilash" }],
     ],
     resize_keyboard: true,
   };
@@ -304,7 +305,7 @@ async function employeeByChat(chatId) {
   if (accessKey.startsWith("employee:")) {
     const employeeId = accessKey.slice("employee:".length);
     const rows = await sql`
-      SELECT id, name, role, phone, location_id AS "locationId", shift_start AS "shiftStart", shift_end AS "shiftEnd", status, code
+      SELECT id, name, role, phone, location_id AS "locationId", shift_start AS "shiftStart", shift_end AS "shiftEnd", status, code, face_file_id AS "faceFileId"
       FROM employees WHERE id = ${employeeId} LIMIT 1
     `;
     return rows[0] || null;
@@ -314,7 +315,7 @@ async function employeeByChat(chatId) {
   if (!phone || accessKey.startsWith("permit:")) return null;
 
   const employees = await sql`
-    SELECT id, name, role, phone, location_id AS "locationId", shift_start AS "shiftStart", shift_end AS "shiftEnd", status, code
+    SELECT id, name, role, phone, location_id AS "locationId", shift_start AS "shiftStart", shift_end AS "shiftEnd", status, code, face_file_id AS "faceFileId"
     FROM employees
   `;
   return employees.find((e) => normalizePhone(e.phone).endsWith(phone.slice(-9))) || null;
@@ -496,7 +497,7 @@ async function handleRoleDecision(callback) {
 
 async function linkEmployeeCode({ chatId, message, code }) {
   const sql = getSql();
-  const rows = await sql`SELECT id, name, status FROM employees WHERE code = ${code} LIMIT 1`;
+  const rows = await sql`SELECT id, name, status, face_file_id AS "faceFileId" FROM employees WHERE code = ${code} LIMIT 1`;
   const employee = rows[0];
 
   if (!employee) {
@@ -527,7 +528,31 @@ async function linkEmployeeCode({ chatId, message, code }) {
   await sendTelegram("sendMessage", {
     chat_id: chatId,
     text: `✅ Muvaffaqiyatli ulandi!\n👤 ${employee.name} sifatida tizimga kirdingiz.`,
-    reply_markup: employeeKeyboard(),
+    reply_markup: { remove_keyboard: true },
+  });
+
+  // Ask for face enrollment if no reference photo yet
+  if (!employee.faceFileId) {
+    await startFaceEnroll(chatId);
+  } else {
+    await sendMenu(chatId);
+  }
+}
+
+// ─── Face enrollment ─────────────────────────────────────────────────────────
+
+async function startFaceEnroll(chatId) {
+  await setState(chatId, { action: "enroll", step: "face_enroll" });
+  await sendTelegram("sendMessage", {
+    chat_id: chatId,
+    text: [
+      "📸 Yuzingiz tekshiruvi uchun bir martalik selfi yuboring.",
+      "",
+      "• Yuz aniq ko'rinsin",
+      "• Yaxshi yorug'lik bo'lsin",
+      "• Ko'zoynak yoki niqob bo'lmasin",
+    ].join("\n"),
+    reply_markup: { remove_keyboard: true },
   });
 }
 
@@ -726,8 +751,14 @@ async function handleEmployeeAccessDecision(callback) {
     DO UPDATE SET chat_id = EXCLUDED.chat_id, name = EXCLUDED.name, status = 'allowed', decided_at = NOW()
   `;
   await sql`DELETE FROM telegram_access WHERE phone = ${"request:" + targetChatId + ":" + code}`;
-  await sendTelegram("sendMessage", { chat_id: targetChatId, text: `✅ Rahbar tasdiqladi. Bot ${employee.name} nomiga ulandi.` });
-  await sendMenu(targetChatId);
+  await sendTelegram("sendMessage", { chat_id: targetChatId, text: `✅ Rahbar tasdiqladi. Bot ${employee.name} nomiga ulandi.`, reply_markup: { remove_keyboard: true } });
+  // Start face enrollment if employee has no reference photo yet
+  const faceRows = await sql`SELECT face_file_id FROM employees WHERE id = ${employee.id} LIMIT 1`;
+  if (!faceRows[0]?.face_file_id) {
+    await startFaceEnroll(targetChatId);
+  } else {
+    await sendMenu(targetChatId);
+  }
   await answerCallback(callback.id, "Tasdiqlandi.");
   await editAdminDecision(callback.message, `✅ Tasdiqlandi: ${employee.name} (${request.name || "Noma'lum"})`);
   return true;
@@ -766,7 +797,31 @@ async function handlePhoto({ chatId, message }) {
   if (!photos?.length) return false;
 
   const state = await getState(chatId);
-  if (!state || state.step !== "photo") return false;
+  if (!state) return false;
+
+  const bestPhoto = photos[photos.length - 1];
+  const fileId = bestPhoto.file_id;
+
+  // ── Face enrollment ──────────────────────────────────────────────────────
+  if (state.step === "face_enroll") {
+    const employee = await employeeByChat(chatId);
+    if (!employee) {
+      await clearState(chatId);
+      await sendTelegram("sendMessage", { chat_id: chatId, text: "❌ Xodim topilmadi. /start bosing.", reply_markup: { remove_keyboard: true } });
+      return true;
+    }
+    const sql = getSql();
+    await sql`UPDATE employees SET face_file_id = ${fileId} WHERE id = ${employee.id}`;
+    await clearState(chatId);
+    await sendTelegram("sendMessage", {
+      chat_id: chatId,
+      text: "✅ Yuzingiz saqlandi! Endi har safar kelganda yuzingiz tekshiriladi.",
+      reply_markup: employeeKeyboard(),
+    });
+    return true;
+  }
+
+  if (state.step !== "photo") return false;
 
   const employee = await employeeByChat(chatId);
   if (!employee) {
@@ -779,10 +834,20 @@ async function handlePhoto({ chatId, message }) {
     return true;
   }
 
+  // ── Enforce face enrollment before punch ─────────────────────────────────
+  if (!employee.faceFileId) {
+    await clearState(chatId);
+    await sendTelegram("sendMessage", {
+      chat_id: chatId,
+      text: "⚠️ Avval yuzingizni ro'yxatdan o'tkazing:",
+      reply_markup: { remove_keyboard: true },
+    });
+    await startFaceEnroll(chatId);
+    return true;
+  }
+
   try {
-    // Use highest-quality photo; store file_id in DB (no download needed → instant punch)
-    const bestPhoto = photos[photos.length - 1];
-    const fileId = bestPhoto.file_id;
+    // fileId is already defined above (from bestPhoto)
     const time = nowTime();
     const day = todayKey();
     const sql = getSql();
@@ -848,21 +913,17 @@ async function handlePhoto({ chatId, message }) {
       reply_markup: employeeKeyboard(),
     });
 
-    // Build admin caption
+    // Build admin notification
     const lat = Number(state.location_lat);
     const lng = Number(state.location_lng);
     const accuracy = state.location_accuracy != null ? Number(state.location_accuracy) : null;
-    const caption = [
-      `👤 Xodim: ${employee.name}`,
-      `📌 Holat: ${label}`,
-      `📅 Sana: ${day}`,
-      `⏰ Vaqt: ${time}`,
+    const punchCaption = [
+      `👤 ${employee.name}  |  ${label}`,
+      `⏰ ${time}  📅 ${day}`,
       state.action === "in" && result.lateMinutes > 0 ? `⚠️ Kechikish: ${result.lateMinutes} daqiqa` : "",
-      Number.isFinite(lat) && Number.isFinite(lng) ? `📍 Lokatsiya: https://maps.google.com/?q=${lat},${lng}` : "",
-      Number.isFinite(accuracy) && accuracy > 0 ? `🎯 Aniqlik: ${Math.round(accuracy)} m` : "",
-      Number.isFinite(result.distance)
-        ? `🟢 GeoFence: mos (${Math.round(result.distance)} m / ${result.radius} m)`
-        : "",
+      Number.isFinite(lat) && Number.isFinite(lng) ? `📍 https://maps.google.com/?q=${lat},${lng}` : "",
+      Number.isFinite(accuracy) && accuracy > 0 ? `🎯 GPS aniqlik: ${Math.round(accuracy)} m` : "",
+      Number.isFinite(result.distance) ? `✅ Geofence: ${Math.round(result.distance)}/${result.radius} m` : "",
     ].filter(Boolean).join("\n");
 
     // Collect all admin chat IDs (super admin + DB admins), deduplicated
@@ -872,13 +933,32 @@ async function handlePhoto({ chatId, message }) {
       ...adminRows.map((r) => String(r.chatId)),
     ].filter((id) => id && String(id) !== String(chatId)));
 
-    // Notify all admins using file_id directly (no re-upload = instant delivery)
+    // Send face review to each admin: reference photo first, then punch photo with approve/reject
     for (const adminId of allAdminIds) {
-      sendTelegram("sendPhoto", {
-        chat_id: adminId,
-        photo: fileId,
-        caption,
-      }).catch((err) => console.error(`Admin notify failed (${adminId}):`, err));
+      (async () => {
+        try {
+          // Reference photo (stored during enrollment)
+          await sendTelegram("sendPhoto", {
+            chat_id: adminId,
+            photo: employee.faceFileId,
+            caption: `🪪 Etalon yuz: ${employee.name}`,
+          });
+          // Punch selfie with face review buttons
+          await sendTelegram("sendPhoto", {
+            chat_id: adminId,
+            photo: fileId,
+            caption: punchCaption + "\n\n🔍 Yuzni tekshiring:",
+            reply_markup: {
+              inline_keyboard: [[
+                { text: "✅ Yuz mos", callback_data: `face:ok:${result.proofId}:${chatId}` },
+                { text: "❌ Yuz mos emas", callback_data: `face:reject:${result.proofId}:${chatId}` },
+              ]],
+            },
+          });
+        } catch (err) {
+          console.error(`Admin face-review notify failed (${adminId}):`, err);
+        }
+      })();
     }
   } catch (err) {
     console.error("Telegram punch error:", err);
@@ -890,6 +970,65 @@ async function handlePhoto({ chatId, message }) {
     });
   }
   return true;
+}
+
+// ─── Face decision callback ───────────────────────────────────────────────────
+
+async function handleFaceDecision(callback) {
+  const parts = String(callback.data || "").split(":");
+  if (parts[0] !== "face") return false;
+  const [, decision, proofId, employeeChatId] = parts;
+  if (!["ok", "reject"].includes(decision) || !proofId) return false;
+
+  if (!await isAdminChat(callback.message?.chat?.id)) {
+    await answerCallback(callback.id, "Bu amal faqat adminlar uchun.");
+    return true;
+  }
+
+  const sql = getSql();
+  const newStatus = decision === "ok" ? "ok" : "rejected";
+  await sql`UPDATE proofs SET face_status = ${newStatus} WHERE id = ${proofId}`;
+
+  if (decision === "ok") {
+    await answerCallback(callback.id, "✅ Yuz tasdiqlandi.");
+    await sendTelegram("editMessageCaption", {
+      chat_id: callback.message.chat.id,
+      message_id: callback.message.message_id,
+      caption: callback.message.caption + "\n\n✅ Yuz tasdiqlandi",
+    }).catch(() => {});
+    if (employeeChatId) {
+      sendTelegram("sendMessage", {
+        chat_id: employeeChatId,
+        text: "✅ Yuzingiz rahbar tomonidan tasdiqlandi.",
+      }).catch(() => {});
+    }
+  } else {
+    await answerCallback(callback.id, "❌ Yuz rad etildi.");
+    await sendTelegram("editMessageCaption", {
+      chat_id: callback.message.chat.id,
+      message_id: callback.message.message_id,
+      caption: callback.message.caption + "\n\n❌ Yuz rad etildi",
+    }).catch(() => {});
+    if (employeeChatId) {
+      sendTelegram("sendMessage", {
+        chat_id: employeeChatId,
+        text: "⚠️ Rahbar yuzingizni tasdiqlamadi. Kelgan vaqtingiz qayd etildi, lekin yuz tekshiruvi rad etildi. Muammo bo'lsa admin bilan bog'laning.",
+        reply_markup: employeeKeyboard(),
+      }).catch(() => {});
+    }
+  }
+  return true;
+}
+
+// ─── Face re-enrollment ───────────────────────────────────────────────────────
+
+async function handleReEnrollFace(chatId) {
+  const employee = await employeeByChat(chatId);
+  if (!employee) {
+    await sendTelegram("sendMessage", { chat_id: chatId, text: "Xodim topilmadi.", reply_markup: employeeKeyboard() });
+    return;
+  }
+  await startFaceEnroll(chatId);
 }
 
 // ─── Dashboard data ───────────────────────────────────────────────────────────
@@ -1026,6 +1165,11 @@ async function handleEmployeeMenu(chatId, text) {
       text: "Xabaringiz rahbar/HR ga yuborildi.",
       reply_markup: employeeKeyboard(),
     });
+    return true;
+  }
+
+  if (text === "📸 Yuzni yangilash") {
+    await handleReEnrollFace(chatId);
     return true;
   }
 
@@ -1272,6 +1416,7 @@ module.exports = async function handler(req, res) {
 
     // Callback queries (inline button taps)
     if (update.callback_query) {
+      if (await handleFaceDecision(update.callback_query)) { json(res, 200, { ok: true }); return; }
       if (await handleRoleDecision(update.callback_query)) { json(res, 200, { ok: true }); return; }
       if (await handleEmployeeAccessDecision(update.callback_query)) { json(res, 200, { ok: true }); return; }
       if (await handleAccessDecision(update.callback_query)) { json(res, 200, { ok: true }); return; }
