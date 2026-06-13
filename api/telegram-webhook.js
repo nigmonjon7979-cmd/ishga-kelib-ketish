@@ -96,8 +96,19 @@ function isAbsent(employee, record) {
   return start !== null && now !== null && now >= start + 240;
 }
 
-function isManagerChat(chatId) {
+function isSuperAdmin(chatId) {
   return String(chatId) === adminChatId();
+}
+
+async function isAdminChat(chatId) {
+  if (isSuperAdmin(chatId)) return true;
+  const sql = getSql();
+  const rows = await sql`
+    SELECT phone FROM telegram_access
+    WHERE chat_id = ${String(chatId)} AND status = 'allowed' AND phone LIKE 'admin:%'
+    LIMIT 1
+  `;
+  return rows.length > 0;
 }
 
 // ─── Keyboards ───────────────────────────────────────────────────────────────
@@ -275,7 +286,7 @@ async function doPunch({ employee, action, day, time, photo, lat, lng, accuracy,
 // ─── Access control ──────────────────────────────────────────────────────────
 
 async function isAllowedChat(chatId) {
-  if (isManagerChat(chatId)) return true;
+  if (isSuperAdmin(chatId)) return true;
   const sql = getSql();
   const rows = await sql`
     SELECT phone FROM telegram_access WHERE chat_id = ${String(chatId)} AND status = 'allowed' LIMIT 1
@@ -312,25 +323,54 @@ async function employeeByChat(chatId) {
 // ─── Messaging helpers ───────────────────────────────────────────────────────
 
 async function sendMenu(chatId) {
-  const manager = isManagerChat(chatId);
+  const isAdmin = await isAdminChat(chatId);
   await sendTelegram("sendMessage", {
     chat_id: chatId,
-    text: manager
-      ? "Rahbar / HR menyusi. Kerakli bo'limni tanlang."
-      : "Xodim menyusi. Keldim yoki Ketdim tugmasini bosing.",
-    reply_markup: manager ? managerKeyboard() : employeeKeyboard(),
+    text: isAdmin
+      ? "👔 Rahbar / HR menyusi. Kerakli bo'limni tanlang."
+      : "👤 Xodim menyusi. Keldim yoki Ketdim tugmasini bosing.",
+    reply_markup: isAdmin ? managerKeyboard() : employeeKeyboard(),
   });
 }
 
-async function requestPermit(chatId) {
+async function sendNewAccessRequest({ chatId, message }) {
+  const sql = getSql();
+  const name = [message.from?.first_name, message.from?.last_name].filter(Boolean).join(" ") || "Noma'lum";
+  const username = message.from?.username ? `@${message.from.username}` : "—";
+
+  const pendingKey = `pending:${chatId}`;
+  await sql`
+    INSERT INTO telegram_access (phone, chat_id, name, status)
+    VALUES (${pendingKey}, ${String(chatId)}, ${name}, 'pending')
+    ON CONFLICT (phone)
+    DO UPDATE SET chat_id = EXCLUDED.chat_id, name = EXCLUDED.name, status = 'pending', requested_at = NOW(), decided_at = NULL
+  `;
+
+  const superAdminId = adminChatId();
+  if (superAdminId) {
+    await sendTelegram("sendMessage", {
+      chat_id: superAdminId,
+      text: [
+        "🔐 Yangi kirish so'rovi:",
+        `👤 Ism: ${name}`,
+        `🆔 Username: ${username}`,
+        `📱 Chat ID: ${chatId}`,
+        "",
+        "Ushbu foydalanuvchiga qanday rol berasiz?",
+      ].join("\n"),
+      reply_markup: {
+        inline_keyboard: [[
+          { text: "👔 Admin", callback_data: `role:admin:${chatId}` },
+          { text: "👤 Xodim", callback_data: `role:employee:${chatId}` },
+          { text: "❌ Rad etish", callback_data: `role:deny:${chatId}` },
+        ]],
+      },
+    });
+  }
+
   await sendTelegram("sendMessage", {
     chat_id: chatId,
-    text: [
-      "🔐 Botga kirish uchun o'zingizning 4 xonali xodim kodingizni yuboring.",
-      "Masalan: 1234",
-      "",
-      "Kod yuborilgandan keyin rahbar/HR tasdiqlaydi.",
-    ].join("\n"),
+    text: "🔐 Bu bot faqat ruxsat berilgan foydalanuvchilar uchun.\n\n⏳ So'rovingiz rahbarga yuborildi. Ruxsat berilgach xabar keladi.",
     reply_markup: { remove_keyboard: true },
   });
 }
@@ -386,6 +426,108 @@ async function handleContact({ chatId, message, phone }) {
     chat_id: chatId,
     text: "So'rovingiz adminga yuborildi. Ruxsat berilsa, kirish menyusi ochiladi.",
     reply_markup: { remove_keyboard: true },
+  });
+}
+
+// ─── Role decision (super admin picks admin/xodim/deny) ─────────────────────
+
+async function handleRoleDecision(callback) {
+  const [scope, role, ...rest] = String(callback.data || "").split(":");
+  const targetChatId = rest.join(":");
+  if (scope !== "role" || !["admin", "employee", "deny"].includes(role) || !targetChatId) return false;
+
+  if (!isSuperAdmin(callback.message?.chat?.id)) {
+    await answerCallback(callback.id, "Bu amal faqat super admin uchun.");
+    return true;
+  }
+
+  const sql = getSql();
+  const pendingKey = `pending:${targetChatId}`;
+  const pendingRows = await sql`SELECT name FROM telegram_access WHERE phone = ${pendingKey} LIMIT 1`;
+  const pending = pendingRows[0];
+
+  if (!pending) {
+    await answerCallback(callback.id, "So'rov topilmadi yoki eskirgan.");
+    await editAdminDecision(callback.message, "So'rov topilmadi yoki eskirgan.");
+    return true;
+  }
+
+  if (role === "deny") {
+    await sql`UPDATE telegram_access SET status = 'denied', decided_at = NOW() WHERE phone = ${pendingKey}`;
+    await denyAccess(targetChatId);
+    await answerCallback(callback.id, "Rad etildi.");
+    await editAdminDecision(callback.message, `❌ Rad etildi: ${pending.name || targetChatId}`);
+    return true;
+  }
+
+  if (role === "admin") {
+    const adminKey = `admin:${targetChatId}`;
+    await sql`
+      INSERT INTO telegram_access (phone, chat_id, name, status, decided_at)
+      VALUES (${adminKey}, ${String(targetChatId)}, ${pending.name || ""}, 'allowed', NOW())
+      ON CONFLICT (phone)
+      DO UPDATE SET chat_id = EXCLUDED.chat_id, name = EXCLUDED.name, status = 'allowed', decided_at = NOW()
+    `;
+    await sql`DELETE FROM telegram_access WHERE phone = ${pendingKey}`;
+    await sendTelegram("sendMessage", {
+      chat_id: targetChatId,
+      text: "✅ Siz admin sifatida tasdiqlandi! Rahbar menyusi ochildi.",
+      reply_markup: managerKeyboard(),
+    });
+    await answerCallback(callback.id, "Admin sifatida tasdiqlandi.");
+    await editAdminDecision(callback.message, `✅ Admin: ${pending.name || targetChatId}`);
+    return true;
+  }
+
+  if (role === "employee") {
+    await sql`UPDATE telegram_access SET status = 'code_pending', decided_at = NOW() WHERE phone = ${pendingKey}`;
+    await sendTelegram("sendMessage", {
+      chat_id: targetChatId,
+      text: "✅ Xodim sifatida tasdiqlandi!\n\n📝 Endi 4 xonali xodim kodingizni yuboring (rahbar bergan kod):",
+      reply_markup: { remove_keyboard: true },
+    });
+    await answerCallback(callback.id, "Xodim — kod kutilmoqda.");
+    await editAdminDecision(callback.message, `👤 Xodim: ${pending.name || targetChatId} — kod kutilmoqda`);
+    return true;
+  }
+
+  return false;
+}
+
+async function linkEmployeeCode({ chatId, message, code }) {
+  const sql = getSql();
+  const rows = await sql`SELECT id, name, status FROM employees WHERE code = ${code} LIMIT 1`;
+  const employee = rows[0];
+
+  if (!employee) {
+    await sendTelegram("sendMessage", { chat_id: chatId, text: "❌ Bu kod bo'yicha xodim topilmadi. Qayta yuboring:" });
+    return;
+  }
+  if (["inactive", "vacation", "sick"].includes(employee.status)) {
+    await sendTelegram("sendMessage", { chat_id: chatId, text: "❌ Bu xodim hozir faol emas. Rahbar bilan bog'laning." });
+    return;
+  }
+
+  const employeeKey = `employee:${employee.id}`;
+  const linked = await sql`SELECT chat_id AS "chatId" FROM telegram_access WHERE phone = ${employeeKey} AND status = 'allowed' LIMIT 1`;
+  if (linked[0] && String(linked[0].chatId) !== String(chatId)) {
+    await sendTelegram("sendMessage", { chat_id: chatId, text: "❌ Bu kod boshqa Telegram akkauntga ulangan. Rahbar bilan bog'laning." });
+    return;
+  }
+
+  const name = [message.from?.first_name, message.from?.last_name].filter(Boolean).join(" ");
+  await sql`
+    INSERT INTO telegram_access (phone, chat_id, name, status, decided_at)
+    VALUES (${employeeKey}, ${String(chatId)}, ${name || employee.name}, 'allowed', NOW())
+    ON CONFLICT (phone)
+    DO UPDATE SET chat_id = EXCLUDED.chat_id, name = EXCLUDED.name, status = 'allowed', decided_at = NOW()
+  `;
+  await sql`DELETE FROM telegram_access WHERE chat_id = ${String(chatId)} AND status = 'code_pending'`;
+
+  await sendTelegram("sendMessage", {
+    chat_id: chatId,
+    text: `✅ Muvaffaqiyatli ulandi!\n👤 ${employee.name} sifatida tizimga kirdingiz.`,
+    reply_markup: employeeKeyboard(),
   });
 }
 
@@ -1063,6 +1205,7 @@ module.exports = async function handler(req, res) {
 
     // Callback queries (inline button taps)
     if (update.callback_query) {
+      if (await handleRoleDecision(update.callback_query)) { json(res, 200, { ok: true }); return; }
       if (await handleEmployeeAccessDecision(update.callback_query)) { json(res, 200, { ok: true }); return; }
       if (await handleAccessDecision(update.callback_query)) { json(res, 200, { ok: true }); return; }
       json(res, 200, { ok: true });
@@ -1078,12 +1221,22 @@ module.exports = async function handler(req, res) {
     const text = String(message.text || "").trim();
     const contactPhone = message.contact?.phone_number;
 
+    const sql = getSql();
+
     // /start
     if (text.startsWith("/start")) {
       if (await isAllowedChat(chatId)) {
         await sendMenu(chatId);
       } else {
-        await requestPermit(chatId);
+        const pending = await sql`SELECT status FROM telegram_access WHERE chat_id = ${String(chatId)} AND status IN ('pending','code_pending') LIMIT 1`;
+        if (pending.length) {
+          const msg = pending[0].status === "code_pending"
+            ? "📝 4 xonali xodim kodingizni yuboring:"
+            : "⏳ So'rovingiz ko'rib chiqilmoqda. Kuting.";
+          await sendTelegram("sendMessage", { chat_id: chatId, text: msg, reply_markup: { remove_keyboard: true } });
+        } else {
+          await sendNewAccessRequest({ chatId, message });
+        }
       }
       json(res, 200, { ok: true });
       return;
@@ -1098,7 +1251,10 @@ module.exports = async function handler(req, res) {
 
     // Location shared
     if (message.location) {
-      if (!await isAllowedChat(chatId)) { await requestPermit(chatId); json(res, 200, { ok: true }); return; }
+      if (!await isAllowedChat(chatId)) {
+        await sendTelegram("sendMessage", { chat_id: chatId, text: "Kirish ruxsati yo'q. /start bosing." });
+        json(res, 200, { ok: true }); return;
+      }
       await handleLocation({ chatId, message });
       json(res, 200, { ok: true });
       return;
@@ -1106,24 +1262,36 @@ module.exports = async function handler(req, res) {
 
     // Photo shared
     if (message.photo) {
-      if (!await isAllowedChat(chatId)) { await requestPermit(chatId); json(res, 200, { ok: true }); return; }
+      if (!await isAllowedChat(chatId)) { json(res, 200, { ok: true }); return; }
       if (await handlePhoto({ chatId, message })) { json(res, 200, { ok: true }); return; }
     }
 
     // Text messages
     if (text) {
-      if (!await isAllowedChat(chatId)) {
-        const code = employeeCodeFromText(text);
-        if (code) {
-          await grantEmployeeCodeAccess({ chatId, message, code });
+      // User approved as employee but waiting for their code
+      const codePending = await sql`SELECT phone FROM telegram_access WHERE chat_id = ${String(chatId)} AND status = 'code_pending' LIMIT 1`;
+      if (codePending.length) {
+        if (/^\d{4}$/.test(text)) {
+          await linkEmployeeCode({ chatId, message, code: text });
         } else {
-          await requestPermit(chatId);
+          await sendTelegram("sendMessage", { chat_id: chatId, text: "📝 Iltimos, 4 xonali xodim kodingizni yuboring:" });
         }
         json(res, 200, { ok: true });
         return;
       }
 
-      if (isManagerChat(chatId) && await handleManagerMenu(chatId, text)) { json(res, 200, { ok: true }); return; }
+      if (!await isAllowedChat(chatId)) {
+        const pending = await sql`SELECT status FROM telegram_access WHERE chat_id = ${String(chatId)} AND status = 'pending' LIMIT 1`;
+        if (pending.length) {
+          await sendTelegram("sendMessage", { chat_id: chatId, text: "⏳ So'rovingiz ko'rib chiqilmoqda. Kuting." });
+        } else {
+          await sendNewAccessRequest({ chatId, message });
+        }
+        json(res, 200, { ok: true });
+        return;
+      }
+
+      if (await isAdminChat(chatId) && await handleManagerMenu(chatId, text)) { json(res, 200, { ok: true }); return; }
       if (await handleEmployeeMenu(chatId, text)) { json(res, 200, { ok: true }); return; }
 
       await sendMenu(chatId);
