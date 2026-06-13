@@ -1450,30 +1450,78 @@ function renderSuspiciousList() {
   if (!suspiciousList) return;
   suspiciousList.innerHTML = "";
   if (!suspiciousItems.length) {
-    suspiciousList.innerHTML = "<article class='metric-row'><div><strong>✅ Shubhali holat yo'q</strong><span>GPS, Face ID va qurilma bo'yicha hozircha muammo topilmadi.</span></div><b>OK</b></article>";
+    suspiciousList.innerHTML = "<article class='metric-row'><div><strong>✅ Shubhali holat yo'q</strong><span>GPS, Face ID va qurilma bo'yicha hozircha muammo topilmadi.</span></div><b class='badge-ok'>OK</b></article>";
     return;
   }
 
-  suspiciousItems.slice(0, 30).forEach((item) => {
+  // Group duplicates by employee+type, keep latest, track count
+  const groups = new Map();
+  suspiciousItems.forEach((item) => {
+    const key = `${item.employeeId || item.id}::${item.type}`;
+    if (!groups.has(key)) {
+      groups.set(key, { item, count: 1 });
+    } else {
+      groups.get(key).count++;
+    }
+  });
+
+  [...groups.values()].forEach(({ item, count }) => {
+    const isDanger = ["gps", "device", "face_failed"].includes(item.type);
     const row = document.createElement("article");
-    row.className = `metric-row ${["gps", "device", "face_failed"].includes(item.type) ? "danger" : "warn"}`;
-    row.innerHTML = "<div><strong></strong><span></span><div class='suspicious-actions'></div></div><b></b>";
-    row.querySelector("strong").textContent = `${item.title} - ${item.employeeName || ""}`;
-    row.querySelector("span").textContent = item.detail || "";
-    row.querySelector("b").textContent = item.type;
-    const actions = row.querySelector(".suspicious-actions");
+    row.className = `metric-row collapsible ${isDanger ? "danger" : "warn"}`;
+
+    // Header (always visible)
+    const header = document.createElement("div");
+    header.className = "metric-header";
+
+    const headerLeft = document.createElement("div");
+    const strong = document.createElement("strong");
+    strong.textContent = `${item.title} — ${item.employeeName || ""}`;
+    const span = document.createElement("span");
+    span.className = "metric-detail-preview";
+    span.textContent = item.detail || "";
+    headerLeft.append(strong, span);
+
+    const headerRight = document.createElement("div");
+    headerRight.className = "metric-meta";
+    const badge = document.createElement("b");
+    badge.textContent = item.type;
+    const chevron = document.createElement("span");
+    chevron.className = "chevron";
+    chevron.textContent = "›";
+    headerRight.append(badge);
+    if (count > 1) {
+      const countBadge = document.createElement("em");
+      countBadge.className = "count-badge";
+      countBadge.textContent = count;
+      headerRight.append(countBadge);
+    }
+    headerRight.append(chevron);
+    header.append(headerLeft, headerRight);
+
+    // Body (hidden until expanded)
+    const body = document.createElement("div");
+    body.className = "metric-body";
+
+    const detailFull = document.createElement("p");
+    detailFull.className = "metric-body-detail";
+    detailFull.textContent = item.detail || "";
+    body.append(detailFull);
+
+    const actions = document.createElement("div");
+    actions.className = "suspicious-actions";
 
     if (item.actionId) {
       const approve = document.createElement("button");
       approve.type = "button";
       approve.className = "secondary small-btn";
       approve.textContent = "Tasdiqlash";
-      approve.addEventListener("click", () => reviewProof(item.actionId, "approve"));
+      approve.addEventListener("click", (e) => { e.stopPropagation(); reviewProof(item.actionId, "approve"); });
       const reject = document.createElement("button");
       reject.type = "button";
       reject.className = "ghost small-btn";
       reject.textContent = "Rad etish";
-      reject.addEventListener("click", () => reviewProof(item.actionId, "reject"));
+      reject.addEventListener("click", (e) => { e.stopPropagation(); reviewProof(item.actionId, "reject"); });
       actions.append(approve, reject);
     }
 
@@ -1482,9 +1530,22 @@ function renderSuspiciousList() {
       reset.type = "button";
       reset.className = "secondary small-btn";
       reset.textContent = "Qurilmani reset";
-      reset.addEventListener("click", () => resetDevice(item.employeeId));
+      reset.addEventListener("click", (e) => { e.stopPropagation(); resetDevice(item.employeeId); });
       actions.append(reset);
     }
+
+    if (item.type === "open") {
+      const note = document.createElement("span");
+      note.style.fontSize = "12px";
+      note.style.color = "var(--muted)";
+      note.textContent = "Ketdim bosilmagan. Admin manual yopishi mumkin.";
+      actions.append(note);
+    }
+
+    body.append(actions);
+    row.append(header, body);
+
+    header.addEventListener("click", () => row.classList.toggle("open"));
 
     suspiciousList.append(row);
   });
