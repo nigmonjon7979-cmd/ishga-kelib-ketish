@@ -356,8 +356,7 @@ async function startCamera(facingMode = currentFacingMode) {
     cameraPreview.srcObject = stream;
     await cameraPreview.play();
     cameraReady = true;
-    selfCheckInBtn.disabled = false;
-    selfCheckOutBtn.disabled = false;
+    updateButtonState();
     const track = stream.getVideoTracks()[0];
     const facing = track?.getSettings?.()?.facingMode || facingMode;
     cameraStatus.textContent = facing === "environment" ? "Orqa kamera" : "Oldingi kamera";
@@ -389,7 +388,8 @@ function captureLocation() {
       return;
     }
 
-    locationStatus.textContent = "Lokatsiya olinmoqda...";
+    locationStatus.textContent = "📍 Lokatsiya olinmoqda...";
+    locationStatus.className = "location-badge";
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const location = {
@@ -397,13 +397,13 @@ function captureLocation() {
           lng: position.coords.longitude,
           accuracy: Math.round(position.coords.accuracy || 0),
         };
-        locationStatus.textContent = `Lokatsiya tayyor (${location.accuracy} m)`;
-        locationStatus.className = "employee-preview success";
+        locationStatus.textContent = `📍 Lokatsiya tayyor (${location.accuracy} m)`;
+        locationStatus.className = "location-badge success";
         resolve(location);
       },
       () => {
-        locationStatus.textContent = "Lokatsiyaga ruxsat berilmadi";
-        locationStatus.className = "employee-preview error";
+        locationStatus.textContent = "📍 Lokatsiyaga ruxsat berilmadi";
+        locationStatus.className = "location-badge error";
         reject(new Error("Keldim/Ketdim qilish uchun lokatsiyaga ruxsat bering."));
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
@@ -605,11 +605,19 @@ function findEmployeeByCode() {
   return state.employees.find((employee) => employee.code === code);
 }
 
+function updateButtonState() {
+  const employee = findEmployeeByCode();
+  const ready = cameraReady && Boolean(employee) && isEmployeeActive(employee);
+  selfCheckInBtn.disabled = !ready;
+  selfCheckOutBtn.disabled = !ready;
+}
+
 function updateEmployeePreview() {
   const code = employeeCodeInput.value.trim();
   if (code.length < 4) {
     codeEmployeePreview.textContent = "";
     codeEmployeePreview.className = "employee-preview";
+    updateButtonState();
     return;
   }
 
@@ -617,15 +625,18 @@ function updateEmployeePreview() {
   if (!employee) {
     codeEmployeePreview.textContent = "Bu kod bo'yicha xodim topilmadi";
     codeEmployeePreview.className = "employee-preview error";
+    updateButtonState();
     return;
   }
   if (!isEmployeeActive(employee)) {
     showSelfMessage("Bu xodim nofaol holatda. Admin bilan bog'laning.", "error");
+    updateButtonState();
     return;
   }
 
-  codeEmployeePreview.textContent = `${employee.name} - ${getSchedule(employee).name}`;
+  codeEmployeePreview.textContent = `${employee.name} — ${getSchedule(employee).name}`;
   codeEmployeePreview.className = "employee-preview success";
+  updateButtonState();
 }
 
 function showSelfMessage(message, type = "") {
@@ -738,6 +749,11 @@ async function selfPunch(action) {
 
     showSelfMessage(`${employee.name}: ${action === "in" ? "kelgan" : "ketgan"} vaqti ${time} rasm bilan yozildi.`, "success");
     employeeCodeInput.value = "";
+    codeEmployeePreview.textContent = "";
+    codeEmployeePreview.className = "employee-preview";
+    locationStatus.textContent = "📍 Lokatsiya belgilashda olinadi";
+    locationStatus.className = "location-badge";
+    updateButtonState();
   } catch (error) {
     showSelfMessage(error.message, "warn");
   }
