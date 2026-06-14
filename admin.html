@@ -19,45 +19,6 @@
         </div>
       </section>
 
-      <section class="summary-grid" id="adminSummary" aria-label="Kunlik ko'rsatkichlar" hidden>
-        <article>
-          <span>Jami xodim</span>
-          <strong id="totalEmployees">0</strong>
-        </article>
-        <article>
-          <span>Ishda</span>
-          <strong id="activeEmployees">0</strong>
-        </article>
-        <article>
-          <span>Bugungi soat</span>
-          <strong id="totalHours">0 soat</strong>
-        </article>
-        <article>
-          <span>Kech qolgan</span>
-          <strong id="lateEmployees">0</strong>
-        </article>
-      </section>
-
-      <section class="self-panel page-hidden" aria-label="Xodim kelish ketish oynasi">
-        <div class="self-copy">
-          <p class="eyebrow">Xodim oynasi</p>
-          <h2>Kodingizni kiriting</h2>
-        </div>
-        <div class="camera-box">
-          <video id="cameraPreview" autoplay playsinline muted></video>
-          <canvas id="proofCanvas" hidden></canvas>
-          <span id="cameraStatus">Kamera ochilmoqda...</span>
-        </div>
-        <form id="selfServiceForm" class="self-form">
-          <input id="employeeCode" type="text" inputmode="numeric" autocomplete="off" placeholder="Xodim kodi" maxlength="4" required />
-          <button id="selfCheckInBtn" type="button" disabled>Keldim</button>
-          <button id="selfCheckOutBtn" type="button" class="secondary" disabled>Ketdim</button>
-        </form>
-        <div id="codeEmployeePreview" class="employee-preview"></div>
-        <div id="locationStatus" class="employee-preview">Lokatsiya belgilashda olinadi</div>
-        <div id="selfMessage" class="self-message" role="status"></div>
-      </section>
-
       <section class="admin-gate" id="adminGate">
         <div>
           <p class="eyebrow">Kirish</p>
@@ -71,12 +32,134 @@
       </section>
 
       <section class="workbench" id="adminArea" hidden>
+        <section class="summary-grid" id="adminSummary" aria-label="Kunlik ko'rsatkichlar" hidden>
+          <article data-icon="👥" data-color="blue">
+            <span>Bugun kelganlar</span>
+            <strong id="todayArrived">0</strong>
+          </article>
+          <article data-icon="⏰" data-color="yellow">
+            <span>Kechikkanlar</span>
+            <strong id="lateEmployees">0</strong>
+          </article>
+          <article data-icon="❌" data-color="red">
+            <span>Ishga kelmaganlar</span>
+            <strong id="todayAbsent">0</strong>
+          </article>
+          <article data-icon="✅" data-color="green">
+            <span>Hozir ishda</span>
+            <strong id="activeEmployees">0</strong>
+          </article>
+          <article data-icon="👥">
+            <span>Jami xodim</span>
+            <strong id="totalEmployees">0</strong>
+          </article>
+          <article data-icon="🌴">
+            <span>Ta'tilda</span>
+            <strong id="vacationEmployees">0</strong>
+          </article>
+          <article data-icon="🚑">
+            <span>Kasallik ta'tili</span>
+            <strong id="sickEmployees">0</strong>
+          </article>
+          <article data-icon="📈">
+            <span>Oylik davomat</span>
+            <strong id="monthlyAttendance">0%</strong>
+          </article>
+          <article data-icon="🟢">
+            <span>Faol xodimlar</span>
+            <strong id="enabledEmployees">0</strong>
+          </article>
+          <article data-icon="⏱️">
+            <span>Bugungi soat</span>
+            <strong id="totalHours">0 soat</strong>
+          </article>
+        </section>
+
         <nav class="dashboard-tabs" aria-label="Admin bo'limlari">
           <button type="button" class="active" data-dashboard-tab="dashboard">Dashboard</button>
           <button type="button" data-dashboard-tab="employees">Xodimlar</button>
+          <button type="button" data-dashboard-tab="attendance">Davomat</button>
+          <button type="button" data-dashboard-tab="branches">Filiallar</button>
+          <button type="button" data-dashboard-tab="schedule">Ish jadvali</button>
+          <button type="button" data-dashboard-tab="permits">Ta'til</button>
+          <button type="button" data-dashboard-tab="late-report">Kechikish</button>
+          <button type="button" data-dashboard-tab="gps">GPS</button>
+          <button type="button" data-dashboard-tab="camera">Kamera</button>
+          <button type="button" data-dashboard-tab="reports">Hisobotlar</button>
+          <button type="button" data-dashboard-tab="payroll">Jarima/Bonus</button>
+          <button type="button" data-dashboard-tab="roles">Rollar</button>
         </nav>
 
+        <section class="admin-tools" aria-label="Tezkor boshqaruv">
+          <label>
+            Global qidiruv
+            <input id="globalSearchInput" type="search" placeholder="Xodim, filial, kod yoki telefon" />
+          </label>
+          <button id="darkModeBtn" type="button" class="ghost">🌙 Qorong'i rejim</button>
+          <button id="importExcelBtn" type="button" class="secondary">📥 Excel yuklash</button>
+          <input id="excelImportInput" type="file" accept=".csv,.txt,.xlsx,.xls" hidden />
+          <a href="/" class="ghost" style="display:inline-flex;align-items:center;padding:8px 14px;border-radius:8px;font-size:14px;font-weight:500;text-decoration:none;border:1px solid var(--line);color:var(--ink)">← Kiosk</a>
+          <button id="lockAdminBtn" type="button" class="ghost">🔒 Chiqish</button>
+        </section>
+
         <section class="dashboard-view" data-dashboard-view="dashboard">
+          <section class="insight-panel">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">Muammo bor</p>
+                <h2>Tezkor filter</h2>
+              </div>
+            </div>
+            <div class="problem-filters" id="problemFilters">
+              <button type="button" data-problem-filter="all" class="active">Hammasi</button>
+              <button type="button" data-problem-filter="late">Kechikkan</button>
+              <button type="button" data-problem-filter="absent">Kelmagan</button>
+              <button type="button" data-problem-filter="gps">GPS xato</button>
+              <button type="button" data-problem-filter="open">Ketishni bosmagan</button>
+            </div>
+            <div class="metric-list" id="problemList"></div>
+          </section>
+
+          <section class="insight-panel">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">Shubhali holatlar</p>
+                <h2>GPS, Face ID va qurilma nazorati</h2>
+              </div>
+            </div>
+            <div class="metric-list" id="suspiciousList"></div>
+          </section>
+
+          <section class="insight-panel alert-panel">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">🔴 Tezkor ogohlantirishlar</p>
+                <h2>Rahbar uchun muhim holatlar</h2>
+              </div>
+            </div>
+            <div class="alert-code" id="quickAlerts"></div>
+          </section>
+
+          <section class="insight-panel">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">🟢 Dashboard tepasi</p>
+                <h2>Bugungi umumiy holat</h2>
+              </div>
+            </div>
+            <div class="branch-grid" id="dashboardBranchStats"></div>
+          </section>
+
+          <section class="insight-panel">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">🗺️ Jonli xarita</p>
+                <h2>Hozir kim qayerda?</h2>
+              </div>
+            </div>
+            <div class="ranking-table" id="liveLocationStats"></div>
+          </section>
+
           <section class="arrival-panel">
           <div class="panel-title">
             <div>
@@ -126,7 +209,6 @@
           <aside class="panel">
           <div class="panel-title">
             <h2>Xodim qo'shish</h2>
-            <button id="lockAdminBtn" type="button" class="ghost small-btn">Yopish</button>
           </div>
           <form id="employeeForm" class="employee-form">
             <label>
@@ -138,7 +220,11 @@
               <input id="employeeRole" type="text" placeholder="Masalan: Usta" />
             </label>
             <label>
-              Ish joyi
+              Telefon
+              <input id="employeePhone" type="tel" placeholder="+998 90 123 45 67" />
+            </label>
+            <label>
+              Filial / Ish joyi
               <select id="employeeLocation" required>
                 <option value="c5">C5 showroom: 09:00 - 21:00</option>
                 <option value="ibn-sino">Ibn Sino showroom: 09:00 - 20:00</option>
@@ -146,6 +232,29 @@
                 <option value="alfraganus">Alfraganus showroom: 10:00 - 20:00</option>
                 <option value="sklad">Sklad: 09:00</option>
               </select>
+            </label>
+            <div class="form-grid-two">
+              <label>
+                Boshlanish
+                <input id="employeeShiftStart" type="time" value="09:00" />
+              </label>
+              <label>
+                Tugash
+                <input id="employeeShiftEnd" type="time" value="19:00" />
+              </label>
+            </div>
+            <label>
+              Faol holati
+              <select id="employeeStatus">
+                <option value="active">Faol</option>
+                <option value="inactive">Nofaol</option>
+                <option value="vacation">Ta'tilda</option>
+                <option value="sick">Kasallik ta'tili</option>
+              </select>
+            </label>
+            <label>
+              Xodim rasmi
+              <input id="employeePhoto" type="file" accept="image/*" />
             </label>
             <button type="submit">Xodim qo'shish</button>
           </form>
@@ -158,15 +267,17 @@
 
           <section class="panel table-panel">
           <div class="panel-title row-title">
-            <h2>Davomat jadvali</h2>
+            <h2>Bugungi davomat</h2>
             <input id="searchInput" type="search" placeholder="Qidirish" />
           </div>
+          <div class="employee-cards-wrap" id="employeeCards"></div>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
                   <th>Xodim</th>
                   <th>Kod</th>
+                  <th>Telefon</th>
                   <th>Ish joyi</th>
                   <th>Kelgan vaqti</th>
                   <th>Ketgan vaqti</th>
@@ -185,6 +296,205 @@
           </div>
           </section>
         </section>
+
+        <section class="dashboard-view" data-dashboard-view="attendance" hidden>
+          <section class="arrival-panel">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">Davomat</p>
+                <h2>Kelish, ketish va ish vaqti</h2>
+              </div>
+            </div>
+            <div class="metric-list" id="attendanceDetails"></div>
+          </section>
+        </section>
+
+        <section class="dashboard-view" data-dashboard-view="branches" hidden>
+          <section class="insight-panel">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">📊 Filial reytingi</p>
+                <h2>Mebel House filiallari statistikasi</h2>
+              </div>
+            </div>
+            <div class="ranking-table" id="branchRanking"></div>
+            <div class="branch-grid" id="branchStats"></div>
+          </section>
+          <section class="insight-panel">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">📈 Oylik trend</p>
+                <h2>Oxirgi 30 kun ko'rsatkichlari</h2>
+              </div>
+            </div>
+            <div class="trend-grid" id="monthlyTrend"></div>
+          </section>
+        </section>
+
+        <section class="dashboard-view" data-dashboard-view="schedule" hidden>
+          <section class="insight-panel">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">Ish jadvali</p>
+                <h2>Haftalik, oylik grafik va smenalar</h2>
+              </div>
+            </div>
+            <div class="feature-grid" id="scheduleOverview"></div>
+          </section>
+        </section>
+
+        <section class="dashboard-view" data-dashboard-view="permits" hidden>
+          <section class="insight-panel">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">Ta'til va ruxsatnomalar</p>
+                <h2>So'rov turlari</h2>
+              </div>
+            </div>
+            <div class="feature-grid" id="permitOverview"></div>
+          </section>
+        </section>
+
+        <section class="dashboard-view" data-dashboard-view="late-report" hidden>
+          <section class="late-panel">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">Kechikishlar hisoboti</p>
+                <h2>Eng ko'p kechikkan xodimlar</h2>
+              </div>
+            </div>
+            <div class="metric-list" id="lateRanking"></div>
+          </section>
+          <section class="insight-panel">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">🏆 Eng intizomli xodimlar</p>
+                <h2>Top 10</h2>
+              </div>
+            </div>
+            <div class="metric-list" id="disciplineRanking"></div>
+          </section>
+          <section class="insight-panel">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">🚨 Intizom buzilishlari</p>
+                <h2>Alohida nazorat ro'yxati</h2>
+              </div>
+            </div>
+            <div class="feature-grid" id="violationOverview"></div>
+          </section>
+        </section>
+
+        <section class="dashboard-view" data-dashboard-view="gps" hidden>
+          <section class="insight-panel">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">Filial GPS koordinatalari</p>
+                <h2>Latitude, longitude va radius</h2>
+              </div>
+            </div>
+            <div class="geofence-grid" id="geofencePanel"></div>
+          </section>
+          <section class="insight-panel">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">GPS nazorat</p>
+                <h2>Lokatsiya, masofa va fake GPS tekshiruvi</h2>
+              </div>
+            </div>
+            <div class="feature-grid" id="gpsOverview"></div>
+          </section>
+          <section class="insight-panel">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">QR kirish</p>
+                <h2>Filiallar uchun QR</h2>
+              </div>
+            </div>
+            <div class="qr-grid" id="branchQrGrid"></div>
+          </section>
+        </section>
+
+        <section class="dashboard-view" data-dashboard-view="camera" hidden>
+          <section class="insight-panel">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">Kamera nazorati</p>
+                <h2>Selfie va yuz tekshirish</h2>
+              </div>
+            </div>
+            <div class="feature-grid" id="cameraOverview"></div>
+          </section>
+        </section>
+
+        <section class="dashboard-view" data-dashboard-view="reports" hidden>
+          <section class="insight-panel">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">Hisobotlar</p>
+                <h2>Kunlik, haftalik, oylik eksport</h2>
+              </div>
+            </div>
+            <div class="feature-grid" id="reportOverview"></div>
+            <div class="actions compact-actions">
+              <button id="monthlyExportBtn" type="button" class="secondary">Oylik Excel/CSV hisobot</button>
+            </div>
+          </section>
+          <section class="insight-panel">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">📥 Excel yuklash</p>
+                <h2>Yangi xodimlarni birdaniga qo'shish</h2>
+              </div>
+            </div>
+            <div class="alert-code">
+Import Excel/CSV
+Export Excel/CSV
+            </div>
+          </section>
+          <section class="insight-panel">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">📱 Telegram integratsiyasi</p>
+                <h2>Avtomatik xabarlar</h2>
+              </div>
+            </div>
+            <div class="alert-code" id="telegramDigest"></div>
+          </section>
+        </section>
+
+        <section class="dashboard-view" data-dashboard-view="payroll" hidden>
+          <section class="insight-panel">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">Jarima va bonus</p>
+                <h2>Kechikish jarimasi, bonus va KPI</h2>
+              </div>
+            </div>
+            <div class="feature-grid" id="payrollOverview"></div>
+          </section>
+        </section>
+
+        <section class="dashboard-view" data-dashboard-view="roles" hidden>
+          <section class="insight-panel">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">Rollar</p>
+                <h2>Admin, HR, filial rahbari va xodim</h2>
+              </div>
+            </div>
+            <div class="feature-grid" id="roleOverview"></div>
+          </section>
+          <section class="insight-panel">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">Admin log</p>
+                <h2>Oxirgi o'zgarishlar tarixi</h2>
+              </div>
+            </div>
+            <div class="metric-list" id="adminLogBody"></div>
+          </section>
+        </section>
       </section>
     </main>
 
@@ -192,11 +502,13 @@
       <tr>
         <td>
           <div class="person">
+            <img data-photo alt="" />
             <strong data-name></strong>
             <span data-role></span>
           </div>
         </td>
         <td><span class="code-badge" data-code></span></td>
+        <td data-phone></td>
         <td data-location></td>
         <td data-arrival>--:--</td>
         <td data-departure>--:--</td>
@@ -228,6 +540,54 @@
         <img id="proofImage" alt="Davomat dalili" />
         <div id="proofLocationText" class="proof-location" hidden></div>
         <a id="proofMapLink" class="map-link" href="#" target="_blank" rel="noreferrer" hidden>Xaritada ko'rish</a>
+      </div>
+    </div>
+
+    <div id="employeeModal" class="proof-modal" hidden>
+      <div class="proof-card employee-detail-card">
+        <div class="panel-title">
+          <h2 id="employeeDetailTitle">Xodim kartasi</h2>
+          <button id="closeEmployeeModalBtn" type="button" class="icon-btn" title="Yopish">×</button>
+        </div>
+        <div id="employeeDetailBody"></div>
+      </div>
+    </div>
+
+    <div id="branchModal" class="proof-modal" hidden>
+      <div class="proof-card employee-detail-card">
+        <div class="panel-title">
+          <h2 id="branchDetailTitle">Filial</h2>
+          <button id="closeBranchModalBtn" type="button" class="icon-btn" title="Yopish">×</button>
+        </div>
+        <div id="branchDetailBody"></div>
+      </div>
+    </div>
+
+    <div id="mapPickerModal" class="proof-modal" hidden>
+      <div class="proof-card map-picker-card">
+        <div class="panel-title">
+          <h2 id="mapPickerTitle">Xaritadan belgilash</h2>
+          <button id="closeMapPickerBtn" type="button" class="icon-btn" title="Yopish">×</button>
+        </div>
+        <div class="map-picker-toolbar">
+          <button id="mapZoomOutBtn" type="button">−</button>
+          <button id="mapZoomInBtn" type="button">+</button>
+        </div>
+        <form id="mapSearchForm" class="map-search">
+          <input id="mapSearchInput" type="search" placeholder="Manzil qidirish: C5 showroom, Ibn Sino..." />
+          <button type="submit">Qidirish</button>
+          <button id="openGoogleMapsBtn" type="button" class="secondary">Google Maps</button>
+        </form>
+        <form id="googleMapsForm" class="map-search">
+          <input id="googleMapsInput" type="text" placeholder="Google Maps linki yoki koordinata: 41.326172, 69.274101" />
+          <button type="submit">Linkdan olish</button>
+        </form>
+        <div id="mapPicker" class="map-picker"></div>
+        <div id="mapPickerStatus" class="proof-location">Xaritada filial joyini bosing.</div>
+        <div class="map-picker-actions">
+          <button id="useMapCenterBtn" type="button">Markazni tanlash</button>
+          <button id="useMapPointBtn" type="button" disabled>Tanlash</button>
+        </div>
       </div>
     </div>
 

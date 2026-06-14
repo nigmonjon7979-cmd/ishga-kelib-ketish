@@ -2214,9 +2214,9 @@ locationInput.addEventListener("change", () => {
   if (shiftStartInput) shiftStartInput.value = schedule.start || "09:00";
   if (shiftEndInput) shiftEndInput.value = schedule.end || "19:00";
 });
-selfCheckInBtn.addEventListener("click", () => selfPunch("in"));
-selfCheckOutBtn.addEventListener("click", () => selfPunch("out"));
-adminLoginForm.addEventListener("submit", async (event) => {
+selfCheckInBtn?.addEventListener("click", () => selfPunch("in"));
+selfCheckOutBtn?.addEventListener("click", () => selfPunch("out"));
+adminLoginForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
     await apiRequest("/admin-login", {
@@ -2230,16 +2230,22 @@ adminLoginForm.addEventListener("submit", async (event) => {
     adminPinInput.select();
   }
 });
-lockAdminBtn.addEventListener("click", () => setAdminOpen(false));
+lockAdminBtn?.addEventListener("click", () => {
+  if (PAGE === "admin") {
+    window.location.href = "/";
+  } else {
+    setAdminOpen(false);
+  }
+});
 closeProofBtn.addEventListener("click", closeProof);
 proofModal.addEventListener("click", (event) => {
   if (event.target === proofModal) closeProof();
 });
-employeeCodeInput.addEventListener("input", () => {
+employeeCodeInput?.addEventListener("input", () => {
   employeeCodeInput.value = employeeCodeInput.value.replace(/\D/g, "").slice(0, 4);
   updateEmployeePreview();
 });
-employeeCodeInput.addEventListener("keydown", (event) => {
+employeeCodeInput?.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
     event.preventDefault();
     selfPunch("in");
@@ -2314,16 +2320,16 @@ reportDateInput.addEventListener("change", async () => {
 });
 
 renderClock();
-reportDateInput.value = selectedDay;
+if (reportDateInput) reportDateInput.value = selectedDay;
 render();
 loadServerState().catch(() => {
   serverMode = false;
   ensureEmployeeCodes();
   saveLocalState();
   render();
-  showAdminMessage("Neon server ulanmagan. Hozir lokal zaxira rejimida ishlayapti.", "warn");
+  if (PAGE !== "admin") showAdminMessage("Neon server ulanmagan. Hozir lokal zaxira rejimida ishlayapti.", "warn");
 });
-startCamera();
+if (PAGE !== "admin") startCamera();
 
 // Clock updates every second — lightweight
 setInterval(renderClock, 1000);
