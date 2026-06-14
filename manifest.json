@@ -1,0 +1,15 @@
+{
+  "name": "Mebel House — Ish vaqti",
+  "short_name": "Mebel House",
+  "description": "Xodimlar kelish-ketish nazorati",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F07922",
+  "theme_color": "#F07922",
+  "orientation": "portrait",
+  "lang": "uz",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
