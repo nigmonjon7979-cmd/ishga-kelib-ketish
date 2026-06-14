@@ -365,7 +365,6 @@ async function startCamera(facingMode = currentFacingMode) {
     if (flipBtn) flipBtn.title = facing === "environment" ? "Oldingi kameraga o'tish" : "Orqa kameraga o'tish";
   } catch {
     cameraStatus.textContent = "Kamera ruxsati berilmadi";
-    showSelfMessage("Keldim/Ketdim qilish uchun kameraga ruxsat bering.", "error");
   }
 }
 
@@ -784,8 +783,7 @@ function closeProof() {
 
 async function selfPunch(action) {
   if (!cameraReady) {
-    showSelfMessage("Avval kameraga ruxsat bering. Rasm dalili bo'lmasa vaqt yozilmaydi.", "error");
-    return;
+    showSelfMessage("Kamera ulangan emas — rasm bo'lmaydi, lekin vaqt yoziladi.", "warn");
   }
 
   const employee = findEmployeeByCode();
