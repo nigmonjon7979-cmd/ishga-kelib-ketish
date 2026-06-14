@@ -2262,6 +2262,7 @@ adminLoginForm?.addEventListener("submit", async (event) => {
     });
     showAdminMessage("");
     setAdminOpen(true);
+    await loadServerState().catch(() => render());
   } catch (error) {
     showAdminMessage(error.message || "PIN noto'g'ri.", "error");
     adminPinInput.select();
