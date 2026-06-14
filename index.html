@@ -16,6 +16,19 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body data-page="employee">
+
+    <!-- iOS install banner -->
+    <div id="iosBanner" class="ios-banner" hidden>
+      <button class="ios-banner-close" onclick="document.getElementById('iosBanner').hidden=true">✕</button>
+      <div class="ios-banner-icon">
+        <svg viewBox="0 0 120 60" width="40" height="20"><rect x="2" y="2" width="46" height="46" rx="8" fill="#F07922"/><text x="25" y="36" font-family="Arial Black,sans-serif" font-size="30" font-weight="900" fill="white" text-anchor="middle">Ц</text><rect x="26" y="20" width="40" height="38" rx="7" fill="#5A5A5A"/><text x="46" y="49" font-family="Arial Black,sans-serif" font-size="24" font-weight="900" fill="white" text-anchor="middle">5</text></svg>
+      </div>
+      <div class="ios-banner-text">
+        <strong>Ilovani o'rnating</strong>
+        <span>Pastdagi <b>↑</b> tugmani bosing → <b>"Add to Home Screen"</b></span>
+      </div>
+    </div>
+
     <main class="app">
       <section class="topbar" aria-label="Bosh panel">
         <div class="topbar-brand">
@@ -667,6 +680,18 @@ Export Excel/CSV
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
       }
+      // iOS Safari da "Add to Home Screen" banneri ko'rsatish
+      (function() {
+        const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+        const isInStandalone = window.navigator.standalone === true;
+        const dismissed = sessionStorage.getItem('ios-banner-dismissed');
+        if (isIos && !isInStandalone && !dismissed) {
+          document.getElementById('iosBanner').hidden = false;
+          document.querySelector('.ios-banner-close').addEventListener('click', () => {
+            sessionStorage.setItem('ios-banner-dismissed', '1');
+          });
+        }
+      })();
     </script>
   </body>
 </html>
