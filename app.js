@@ -1748,6 +1748,8 @@ function renderEmployeeCards(employees) {
     groupEmployees.forEach((employee) => {
       const record = getRecord(employee.id);
       const st = statusFor(employee, record);
+      const faceIcon = employee.faceFileId ? "🟢" : "⚪";
+      const faceTitle = employee.faceFileId ? "Face ID ro'yxatda" : "Face ID yo'q";
       const card = document.createElement("button");
       card.type = "button";
       card.className = `employee-mini-card emc--${st.className || "ok"}`;
@@ -1756,6 +1758,7 @@ function renderEmployeeCards(employees) {
         <div class="emc-info">
           <strong></strong>
           <small></small>
+          <span class="emc-face" title="${faceTitle}">${faceIcon} Face ID</span>
         </div>
         <div class="emc-time">
           <span class="emc-arrival">${record.arrival || "--:--"}</span>
@@ -1786,32 +1789,63 @@ async function showEmployeeCard(employeeId) {
   const proofId = record.arrivalPhoto || record.departurePhoto;
   let proof = { photo: "", location: null };
   if (proofId) {
-    try {
-      proof = await getProofDetails(proofId);
-    } catch {
-      proof = { photo: "", location: null };
-    }
+    try { proof = await getProofDetails(proofId); } catch { proof = { photo: "", location: null }; }
   }
+  const faceStatus = employee.faceFileId
+    ? `<span style="color:var(--accent);font-weight:600">✅ Ro'yxatda</span>`
+    : `<span style="color:var(--danger);font-weight:600">❌ Ro'yxatda emas</span>`;
+  const statusInfo = statusFor(employee, record);
   employeeDetailTitle.textContent = employee.name;
   employeeDetailBody.innerHTML = `
-    <div class="employee-detail">
-      <img src="${proof.photo || employee.photo || DEFAULT_PHOTO}" alt="" />
-      <div>
-        <p><b>Telefon:</b> ${employee.phone || "--"}</p>
-        <p><b>Lavozim:</b> ${employee.role || "--"}</p>
-        <p><b>Filial:</b> ${schedule.name}</p>
-        <p><b>Ish vaqti:</b> ${schedule.start}${schedule.end ? ` - ${schedule.end}` : ""}</p>
-        <p><b>Bugungi foto:</b> ${proof.photo ? "bor" : "yo'q"}</p>
-        <p><b>Kelgan/Ketgan:</b> ${record.arrival || "--:--"} / ${record.departure || "--:--"}</p>
-        <p><b>Kechikish:</b> ${formatDuration(late)}</p>
-        <p><b>Oxirgi 30 kun:</b> ${monthRecords.length} kun davomat bor</p>
-        <p><b>GPS:</b> ${proof.location ? `${Number(proof.location.lat).toFixed(6)}, ${Number(proof.location.lng).toFixed(6)}` : "yo'q"}</p>
-        ${proof.location ? `<a class="map-link" href="https://maps.google.com/?q=${proof.location.lat},${proof.location.lng}" target="_blank" rel="noreferrer">Xaritada ko'rish</a>` : ""}
-        <button type="button" class="secondary" data-reset-device="${employee.id}">Qurilmani reset qilish</button>
+    <div class="emp-card-detail">
+      <div class="emp-card-photo-col">
+        <img src="${proof.photo || employee.photo || DEFAULT_PHOTO}" alt="" class="emp-card-photo" />
+        <span class="status ${statusInfo.className}" style="margin-top:8px">${statusInfo.label}</span>
+      </div>
+      <div class="emp-card-info-col">
+        <div class="emp-card-section">
+          <p class="eyebrow">Asosiy ma'lumot</p>
+          <div class="emp-card-rows">
+            <div class="emp-card-row"><span>Telefon</span><b>${employee.phone || "--"}</b></div>
+            <div class="emp-card-row"><span>Lavozim</span><b>${employee.role || "--"}</b></div>
+            <div class="emp-card-row"><span>Filial</span><b>${schedule.name}</b></div>
+            <div class="emp-card-row"><span>Ish vaqti</span><b>${schedule.start}${schedule.end ? ` – ${schedule.end}` : ""}</b></div>
+          </div>
+        </div>
+        <div class="emp-card-section">
+          <p class="eyebrow">Bugungi holat</p>
+          <div class="emp-card-rows">
+            <div class="emp-card-row"><span>Kelgan</span><b>${record.arrival || "--:--"}</b></div>
+            <div class="emp-card-row"><span>Ketgan</span><b>${record.departure || "--:--"}</b></div>
+            <div class="emp-card-row"><span>Kechikish</span><b>${late > 0 ? formatDuration(late) : "Yo'q"}</b></div>
+            <div class="emp-card-row"><span>Oylik davomat</span><b>${monthRecords.length} kun</b></div>
+          </div>
+        </div>
+        <div class="emp-card-section">
+          <p class="eyebrow">Xavfsizlik</p>
+          <div class="emp-card-rows">
+            <div class="emp-card-row"><span>Face ID</span><b>${faceStatus}</b></div>
+            <div class="emp-card-row"><span>GPS</span><b>${proof.location ? `${Number(proof.location.lat).toFixed(5)}, ${Number(proof.location.lng).toFixed(5)}` : "Yo'q"}</b></div>
+          </div>
+          ${proof.location ? `<a class="map-link" href="https://maps.google.com/?q=${proof.location.lat},${proof.location.lng}" target="_blank" rel="noreferrer">🗺 Xaritada ko'rish</a>` : ""}
+        </div>
+        <div class="emp-card-actions">
+          <button type="button" class="secondary" data-reset-device>🔄 Qurilmani reset</button>
+          <button type="button" class="ghost" data-edit-employee>✏️ Tahrirlash</button>
+        </div>
       </div>
     </div>
   `;
   employeeDetailBody.querySelector("[data-reset-device]")?.addEventListener("click", () => resetDevice(employee.id));
+  employeeDetailBody.querySelector("[data-edit-employee]")?.addEventListener("click", () => {
+    employeeModal.hidden = true;
+    switchDashboardView("employees");
+    if (nameInput) nameInput.value = employee.name;
+    if (roleInput) roleInput.value = employee.role || "";
+    if (phoneInput) phoneInput.value = employee.phone || "";
+    if (locationInput) locationInput.value = employee.locationId || "c5";
+    if (employeeStatusInput) employeeStatusInput.value = employee.status || "active";
+  });
   employeeModal.hidden = false;
 }
 

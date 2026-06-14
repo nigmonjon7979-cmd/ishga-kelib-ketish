@@ -1570,3 +1570,69 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover { background: #484f58; }
   .admin-back-btn { padding: 6px 10px; font-size: 12px; }
   .admin-tools { flex-wrap: wrap; }
 }
+
+/* ─── Employee Mini Card — Face ID badge ────────────────────────── */
+.emc-face {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 2px;
+  display: block;
+}
+
+/* ─── Employee Detail Modal (redesigned) ────────────────────────── */
+.emp-card-detail {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+.emp-card-photo-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.emp-card-photo {
+  width: 120px;
+  height: 120px;
+  border-radius: var(--radius);
+  object-fit: cover;
+  border: 2px solid var(--line);
+  background: #111;
+}
+.emp-card-info-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.emp-card-section { }
+.emp-card-section .eyebrow { margin-bottom: 8px; }
+.emp-card-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.emp-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  gap: 8px;
+}
+.emp-card-row span { color: var(--muted); flex-shrink: 0; }
+.emp-card-row b { font-weight: 600; text-align: right; }
+.emp-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+.emp-card-actions button { flex: 1; min-width: 140px; font-size: 13px; }
+
+@media (max-width: 500px) {
+  .emp-card-detail { grid-template-columns: 1fr; }
+  .emp-card-photo-col { flex-direction: row; }
+  .emp-card-photo { width: 72px; height: 72px; }
+}
