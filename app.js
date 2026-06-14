@@ -138,6 +138,7 @@ let mapDrag = null;
 let cameraReady = false;
 let proofDbPromise = null;
 let serverMode = false;
+let adminAuthenticated = false;
 let selectedDay = todayKey();
 let problemFilter = "all";
 
@@ -600,6 +601,7 @@ function buildEmployeeRow(employee) {
 }
 
 function render() {
+  if (PAGE === "admin" && !adminAuthenticated) return;
   ensureEmployeeCodes();
   const query = [searchInput?.value || "", globalSearchInput?.value || ""].join(" ").trim().toLowerCase();
   const employees = state.employees.filter((employee) => {
@@ -719,6 +721,7 @@ function showAdminMessage(message, type = "") {
 }
 
 function setAdminOpen(isOpen) {
+  adminAuthenticated = isOpen;
   if (adminArea) adminArea.hidden = !isOpen;
   if (adminGate) adminGate.hidden = isOpen;
   if (adminSummary) adminSummary.hidden = !isOpen;
