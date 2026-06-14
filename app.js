@@ -548,7 +548,17 @@ function buildEmployeeRow(employee) {
     employee.role || "Lavozim kiritilmagan",
     isEmployeeActive(employee) ? "Faol" : "Nofaol",
   ].join(" | ");
-  row.querySelector("[data-code]").textContent = employee.code;
+  const codeEl = row.querySelector("[data-code]");
+  codeEl.textContent = employee.code;
+  codeEl.title = "Nusxa olish";
+  codeEl.addEventListener("click", (e) => {
+    e.stopPropagation();
+    navigator.clipboard?.writeText(employee.code).then(() => {
+      codeEl.classList.add("copied");
+      showToast(`Kod nusxalandi: ${employee.code}`);
+      setTimeout(() => codeEl.classList.remove("copied"), 600);
+    });
+  });
   const phoneCell = row.querySelector("[data-phone]");
   if (phoneCell) phoneCell.textContent = employee.phone || "--";
   row.querySelector("[data-location]").textContent = formatSchedule(schedule);
@@ -683,6 +693,19 @@ function updateEmployeePreview() {
   codeEmployeePreview.textContent = `${employee.name} — ${getSchedule(employee).name}`;
   codeEmployeePreview.className = "employee-preview success";
   updateButtonState();
+}
+
+function showToast(message, duration = 2200) {
+  let el = document.getElementById("toast-msg");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "toast-msg";
+    document.body.appendChild(el);
+  }
+  el.textContent = message;
+  el.className = "toast-show";
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.className = ""; }, duration);
 }
 
 function showSelfMessage(message, type = "") {
