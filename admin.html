@@ -8,14 +8,20 @@
   </head>
   <body data-page="admin">
     <main class="app">
-      <section class="topbar" aria-label="Admin bosh panel">
-        <div>
-          <p class="eyebrow">Admin panel</p>
-          <h1>Nazorat va hisobot</h1>
+      <section class="topbar admin-topbar" aria-label="Admin bosh panel">
+        <div class="admin-topbar-left">
+          <a href="/" class="admin-back-btn" title="Kioskga qaytish">← Kiosk</a>
+          <div>
+            <p class="eyebrow">Admin panel</p>
+            <h1>Nazorat va hisobot</h1>
+          </div>
         </div>
-        <div class="datebox">
-          <span id="todayLabel">Bugun</span>
-          <strong id="clockLabel">--:--</strong>
+        <div class="admin-topbar-right">
+          <button id="darkModeBtn" type="button" class="ghost icon-only-btn" title="Qorong'i rejim">🌙</button>
+          <div class="datebox">
+            <span id="todayLabel">Bugun</span>
+            <strong id="clockLabel">--:--</strong>
+          </div>
         </div>
       </section>
 
@@ -91,15 +97,15 @@
         </nav>
 
         <section class="admin-tools" aria-label="Tezkor boshqaruv">
-          <label>
-            Global qidiruv
-            <input id="globalSearchInput" type="search" placeholder="Xodim, filial, kod yoki telefon" />
+          <label class="admin-search-label">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input id="globalSearchInput" type="search" placeholder="Xodim, filial, kod yoki telefon..." />
           </label>
-          <button id="darkModeBtn" type="button" class="ghost">🌙 Qorong'i rejim</button>
-          <button id="importExcelBtn" type="button" class="secondary">📥 Excel yuklash</button>
-          <input id="excelImportInput" type="file" accept=".csv,.txt,.xlsx,.xls" hidden />
-          <a href="/" class="ghost" style="display:inline-flex;align-items:center;padding:8px 14px;border-radius:8px;font-size:14px;font-weight:500;text-decoration:none;border:1px solid var(--line);color:var(--ink)">← Kiosk</a>
-          <button id="lockAdminBtn" type="button" class="ghost">🔒 Chiqish</button>
+          <div class="admin-tools-actions">
+            <button id="importExcelBtn" type="button" class="secondary">📥 Excel</button>
+            <input id="excelImportInput" type="file" accept=".csv,.txt,.xlsx,.xls" hidden />
+            <button id="lockAdminBtn" type="button" class="ghost">🔒 Chiqish</button>
+          </div>
         </section>
 
         <section class="dashboard-view" data-dashboard-view="dashboard">
