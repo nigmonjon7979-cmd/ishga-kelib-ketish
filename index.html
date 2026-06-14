@@ -29,31 +29,66 @@
         </div>
       </section>
 
-      <section class="self-panel" aria-label="Xodim kelish ketish oynasi">
-        <div class="kiosk-cam">
+      <section class="kiosk-layout" aria-label="Xodim kelish ketish">
+
+        <!-- Camera column -->
+        <div class="kiosk-cam-col">
           <div class="camera-box">
             <video id="cameraPreview" autoplay playsinline muted></video>
             <canvas id="proofCanvas" hidden></canvas>
             <span id="cameraStatus">Kamera ochilmoqda...</span>
             <button id="cameraFlipBtn" type="button" onclick="switchCamera()" title="Kamerani almashtirish" aria-label="Kamerani almashtirish">⟳</button>
           </div>
+          <div class="kiosk-cam-hint">
+            <span>📸 Kamera yuzingizni tasdiqlash uchun</span>
+          </div>
         </div>
-        <div class="kiosk-side">
-          <div class="kiosk-header">
-            <p class="eyebrow">Xodimlar bo'limi</p>
-            <h2>Kodingizni kiriting</h2>
-          </div>
-          <div id="selfServiceForm">
-            <input id="employeeCode" type="text" inputmode="numeric" autocomplete="off" placeholder="• • • •" maxlength="4" required class="kiosk-code-input" />
+
+        <!-- Action column -->
+        <div class="kiosk-action-col">
+
+          <!-- Step 1: Code input -->
+          <div class="kiosk-card">
+            <div class="kiosk-card-icon">🔢</div>
+            <p class="kiosk-card-label">Xodim kodi</p>
+            <input
+              id="employeeCode"
+              type="text"
+              inputmode="numeric"
+              autocomplete="off"
+              placeholder="0000"
+              maxlength="4"
+              required
+              class="kiosk-code-input"
+              aria-label="4 xonali kod"
+            />
             <div id="codeEmployeePreview" class="employee-preview"></div>
-            <div id="locationStatus" class="location-badge">📍 Lokatsiya belgilashda olinadi</div>
-            <div class="kiosk-btns">
-              <button id="selfCheckInBtn" type="button" disabled class="kiosk-btn-in">✅ Keldim</button>
-              <button id="selfCheckOutBtn" type="button" disabled class="kiosk-btn-out">🚪 Ketdim</button>
-            </div>
           </div>
+
+          <!-- Location status -->
+          <div id="locationStatus" class="kiosk-location-badge">
+            <span class="kiosk-location-dot"></span>
+            Lokatsiya aniqlanmoqda...
+          </div>
+
+          <!-- Buttons -->
+          <div class="kiosk-btns">
+            <button id="selfCheckInBtn" type="button" disabled class="kiosk-btn kiosk-btn-in">
+              <span class="kiosk-btn-icon">✅</span>
+              <span class="kiosk-btn-text">Keldim</span>
+              <span class="kiosk-btn-sub">Ishni boshlash</span>
+            </button>
+            <button id="selfCheckOutBtn" type="button" disabled class="kiosk-btn kiosk-btn-out">
+              <span class="kiosk-btn-icon">🚪</span>
+              <span class="kiosk-btn-text">Ketdim</span>
+              <span class="kiosk-btn-sub">Ishni tugatish</span>
+            </button>
+          </div>
+
+          <!-- Feedback message -->
           <div id="selfMessage" class="self-message" role="status"></div>
         </div>
+
       </section>
 
       <div style="display:none" id="adminArea" hidden></div>
