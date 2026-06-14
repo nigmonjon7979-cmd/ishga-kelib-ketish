@@ -72,6 +72,9 @@ body {
   padding: 24px 0 60px;
 }
 
+/* Ensure [hidden] always wins over display classes */
+[hidden] { display: none !important; }
+
 /* ─── Typography ─────────────────────────────────────────────────── */
 .eyebrow {
   font-size: 10px;
