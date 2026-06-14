@@ -1433,6 +1433,100 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover { background: #484f58; }
   .geofence-actions { grid-template-columns: 1fr; }
 }
 
+/* ─── Mobil kiosk dizayni (480px gacha) ─────────────────────────── */
+@media (max-width: 480px) {
+  /* Asosiy konteyner */
+  .app { width: 100%; padding: 0; }
+
+  /* Topbar — yashirin, faqat brand ko'rinadi */
+  [data-page="employee"] .topbar {
+    padding: 12px 16px 10px;
+    margin-bottom: 0;
+    border-bottom: none;
+    flex-direction: row;
+    align-items: center;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  [data-page="employee"] .datebox {
+    min-width: unset;
+    padding: 6px 12px;
+    border-radius: 10px;
+    text-align: right;
+  }
+  [data-page="employee"] .datebox span { font-size: 9px; }
+  [data-page="employee"] .datebox strong { font-size: 18px; }
+
+  /* Kiosk layout — to'liq ekran */
+  [data-page="employee"] .kiosk-layout {
+    gap: 0;
+    margin-bottom: 0;
+  }
+
+  /* Kamera — katta va to'liq kenglik */
+  [data-page="employee"] .kiosk-cam-col {
+    gap: 0;
+  }
+  [data-page="employee"] .camera-box {
+    border-radius: 0;
+    aspect-ratio: unset;
+    height: 52vw;
+    min-height: 200px;
+    max-height: 260px;
+    border: none;
+    box-shadow: none;
+  }
+  [data-page="employee"] .kiosk-cam-hint {
+    display: none;
+  }
+
+  /* Amallar ustuni */
+  [data-page="employee"] .kiosk-action-col {
+    padding: 14px 14px 100px;
+    gap: 12px;
+  }
+
+  /* Kod kartasi */
+  [data-page="employee"] .kiosk-card {
+    padding: 16px 16px 14px;
+    border-radius: 14px;
+    gap: 6px;
+  }
+  [data-page="employee"] .kiosk-card-icon { font-size: 22px; }
+  [data-page="employee"] .kiosk-card-label { font-size: 11px; }
+
+  /* Kod input — katta */
+  [data-page="employee"] .kiosk-code-input {
+    font-size: 44px !important;
+    min-height: 72px !important;
+    letter-spacing: 0.35em;
+    border-radius: 12px !important;
+  }
+
+  /* Lokatsiya */
+  [data-page="employee"] .kiosk-location-badge {
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 12px;
+  }
+
+  /* Tugmalar — katta va qulay */
+  [data-page="employee"] .kiosk-btns {
+    gap: 10px;
+  }
+  [data-page="employee"] .kiosk-btn {
+    min-height: 80px !important;
+    border-radius: 16px !important;
+    gap: 2px;
+  }
+  [data-page="employee"] .kiosk-btn-icon { font-size: 28px; }
+  [data-page="employee"] .kiosk-btn-text { font-size: 17px; }
+  [data-page="employee"] .kiosk-btn-sub  { font-size: 11px; }
+}
+
 /* ─── Responsive: 640px ──────────────────────────────────────────── */
 @media (max-width: 640px) {
   .app { width: calc(100% - 20px); padding-top: 14px; }
