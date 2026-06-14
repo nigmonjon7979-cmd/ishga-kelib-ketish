@@ -4,6 +4,9 @@
       "maxDuration": 10
     }
   },
+  "rewrites": [
+    { "source": "/admin", "destination": "/admin.html" }
+  ],
   "crons": [
     {
       "path": "/api/telegram-digest",
