@@ -590,6 +590,26 @@ label {
 .metric-row.danger b  { background: var(--danger-light); color: #991b1b; }
 .metric-row.warn b    { background: var(--warn-light);   color: #92400e; }
 
+/* ─── Face status badges ─────────────────────────────────────────── */
+.face-ok      { outline: 2px solid var(--accent) !important; }
+.face-bad     { outline: 2px solid var(--danger) !important; }
+.face-pending { outline: 2px solid var(--warn)   !important; }
+
+.face-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.face-status-badge.ok             { background: var(--accent-light);  color: var(--accent-text); }
+.face-status-badge.pending        { background: var(--warn-light);    color: var(--warn); }
+.face-status-badge.rejected,
+.face-status-badge.failed         { background: var(--danger-light);  color: var(--danger); }
+.face-status-badge.manual_approved{ background: var(--accent-light);  color: var(--accent-text); }
+
 /* ─── Collapsible Metric Rows ────────────────────────────────────── */
 .metric-row.collapsible { display: block; padding: 0; overflow: hidden; }
 

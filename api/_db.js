@@ -131,6 +131,15 @@ async function ensureSchema() {
       `,
     ]);
 
+    // Indexes for performance + cleanup expired states
+    await Promise.all([
+      sql`CREATE INDEX IF NOT EXISTS idx_proofs_employee_day ON proofs(employee_id, day)`,
+      sql`CREATE INDEX IF NOT EXISTS idx_attendance_day ON attendance(day)`,
+      sql`CREATE INDEX IF NOT EXISTS idx_attendance_employee ON attendance(employee_id)`,
+      sql`CREATE INDEX IF NOT EXISTS idx_proofs_face_status ON proofs(face_status)`,
+      sql`DELETE FROM telegram_state WHERE expires_at < NOW()`,
+    ]);
+
     // Seed geofences and fix sklad radius in parallel
     await Promise.all([
       sql`

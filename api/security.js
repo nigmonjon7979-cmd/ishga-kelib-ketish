@@ -144,7 +144,7 @@ async function getSuspicious(req, res, sql) {
       WHERE p.day = ${day}
         AND (
           COALESCE(p.geo_status, '') NOT IN ('ok', 'manual_approved')
-          OR COALESCE(p.face_status, 'pending') IN ('pending', 'failed')
+          OR COALESCE(p.face_status, 'pending') IN ('pending', 'failed', 'rejected')
         )
       ORDER BY p.saved_at DESC
       LIMIT 50
@@ -159,7 +159,7 @@ async function getSuspicious(req, res, sql) {
     sql`
       SELECT id, action, employee_id AS "employeeId", employee_name AS "employeeName", detail, reason
       FROM admin_logs
-      WHERE action IN ('device_mismatch', 'gps_mismatch')
+      WHERE action IN ('device_mismatch', 'gps_mismatch', 'face_mismatch')
       ORDER BY created_at DESC
       LIMIT 30
     `,
@@ -168,19 +168,19 @@ async function getSuspicious(req, res, sql) {
   const items = [
     ...logRows.map((row) => ({
       id: row.id,
-      type: row.action === "device_mismatch" ? "device" : "gps",
+      type: row.action === "device_mismatch" ? "device" : row.action === "face_mismatch" ? "face_failed" : "gps",
       employeeId: row.employeeId,
       employeeName: row.employeeName,
-      title: row.action === "device_mismatch" ? "Boshqa telefondan urinish" : "GPS mos emas",
+      title: row.action === "device_mismatch" ? "Boshqa telefondan urinish" : row.action === "face_mismatch" ? "Yuz mos kelmadi (bloklandi)" : "GPS mos emas",
       detail: row.detail || row.reason || "",
       actionId: null,
     })),
     ...proofRows.map((row) => ({
       id: row.id,
-      type: row.faceStatus === "failed" ? "face_failed" : row.faceStatus === "pending" ? "face_pending" : "gps",
+      type: (row.faceStatus === "failed" || row.faceStatus === "rejected") ? "face_failed" : row.faceStatus === "pending" ? "face_pending" : "gps",
       employeeId: row.employeeId,
       employeeName: row.employeeName,
-      title: row.faceStatus === "failed" ? "Face ID failed" : row.faceStatus === "pending" ? "Face ID pending" : "GPS mos emas",
+      title: (row.faceStatus === "failed" || row.faceStatus === "rejected") ? "Yuz mos kelmadi" : row.faceStatus === "pending" ? "Yuz tekshiruvi kutilmoqda" : "GPS mos emas",
       detail: `${row.type} ${row.time || ""} | Geo: ${row.geoStatus || "pending"} | Face: ${row.faceStatus || "pending"}${row.accuracy ? ` | Aniqlik: ${Math.round(Number(row.accuracy))} m` : ""}`,
       actionId: row.id,
     })),
@@ -224,12 +224,12 @@ async function reviewProof(res, sql, body) {
   const proofId = String(body.proofId || "").trim();
   const decision = String(body.decision || "").trim();
   const reason = String(body.reason || "").trim();
-  if (!proofId || !["approve", "reject", "verified", "failed"].includes(decision) || !reason) {
+  if (!proofId || !["approve", "reject", "verified", "rejected"].includes(decision) || !reason) {
     json(res, 400, { error: "Dalil, qaror va sabab kerak." });
     return;
   }
 
-  const status = decision === "approve" ? "manual_approved" : decision === "reject" ? "failed" : decision;
+  const status = decision === "approve" ? "manual_approved" : decision === "reject" ? "rejected" : decision;
   const rows = await sql`
     UPDATE proofs p
     SET

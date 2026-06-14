@@ -33,6 +33,11 @@ module.exports = async function handler(req, res) {
         DO UPDATE SET arrival = EXCLUDED.arrival, departure = NULL
       `;
     } else {
+      const existing = await sql`SELECT arrival FROM attendance WHERE day = ${day} AND employee_id = ${employeeId} LIMIT 1`;
+      if (!existing[0]?.arrival) {
+        json(res, 400, { error: "Avval kelish vaqtini kiriting." });
+        return;
+      }
       await sql`
         UPDATE attendance
         SET departure = ${time}

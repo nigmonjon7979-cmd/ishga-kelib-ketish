@@ -566,6 +566,14 @@ function buildEmployeeRow(employee) {
   arrivalProofBtn.addEventListener("click", () => showProof(record.arrivalPhoto, `${employee.name} - kelgan dalili`));
   departureProofBtn.addEventListener("click", () => showProof(record.departurePhoto, `${employee.name} - ketgan dalili`));
 
+  // Face status badge on arrival proof button
+  if (record.arrivalFaceStatus) {
+    const faceMap = { ok: ["✅", "face-ok"], rejected: ["❌", "face-bad"], failed: ["❌", "face-bad"], pending: ["⏳", "face-pending"], manual_approved: ["✅", "face-ok"] };
+    const [icon, cls] = faceMap[record.arrivalFaceStatus] || ["?", ""];
+    arrivalProofBtn.title = `Face ID: ${{ ok: "Mos", rejected: "Mos emas", failed: "Mos emas", pending: "Tekshirilmoqda", manual_approved: "Tasdiqlandi" }[record.arrivalFaceStatus] || record.arrivalFaceStatus}`;
+    if (cls) arrivalProofBtn.classList.add(cls);
+  }
+
   const statusEl = row.querySelector("[data-status]");
   statusEl.textContent = isEmployeeActive(employee) ? status.label : "Nofaol";
   statusEl.className = `status ${isEmployeeActive(employee) ? status.className : "waiting"}`.trim();
@@ -721,7 +729,7 @@ async function showProof(proofId, title) {
         `Lokatsiya: ${Number(location.lat).toFixed(6)}, ${Number(location.lng).toFixed(6)}`,
         Number.isFinite(accuracy) && accuracy > 0 ? `Aniqlik: ${Math.round(accuracy)} m` : "",
         proof.geoStatus ? `GeoFence: ${proof.geoStatus === "ok" ? "mos" : proof.geoStatus}` : "",
-        proof.faceStatus ? `Face ID: ${proof.faceStatus === "pending" ? "tekshiruv kutilmoqda" : proof.faceStatus}` : "",
+        proof.faceStatus ? `Face ID: ${{ ok: "✅ Mos", rejected: "❌ Mos emas", failed: "❌ Mos emas", manual_approved: "✅ Tasdiqlandi", pending: "⏳ Tekshirilmoqda" }[proof.faceStatus] || proof.faceStatus}` : "",
         proof.retentionUntil ? `Arxiv: ${new Date(proof.retentionUntil).toLocaleDateString("uz-UZ")} gacha` : "",
       ].filter(Boolean).join(" | ");
       proofLocationText.hidden = false;
