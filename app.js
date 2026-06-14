@@ -319,7 +319,7 @@ async function getProofDetails(proofIdOrPhoto) {
   };
 }
 
-let currentFacingMode = "environment";
+let currentFacingMode = "user";
 
 async function startCamera(facingMode = currentFacingMode) {
   if (PAGE !== "employee") return;
