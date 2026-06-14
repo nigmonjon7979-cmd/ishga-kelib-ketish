@@ -626,19 +626,50 @@ async function grantEmployeeCodeAccess({ chatId, message, code }) {
   }
 
   const employeeKey = `employee:${employee.id}`;
-  const linkedRows = await sql`SELECT chat_id AS "chatId", status FROM telegram_access WHERE phone = ${employeeKey} LIMIT 1`;
+  // Check ALL existing records for this employee key (allowed or pending)
+  const [linkedRows, pendingRows] = await Promise.all([
+    sql`SELECT chat_id AS "chatId", status FROM telegram_access WHERE phone = ${employeeKey} LIMIT 1`,
+    sql`SELECT chat_id AS "chatId" FROM telegram_access WHERE phone LIKE ${"request:%:" + code} AND status = 'pending' LIMIT 1`,
+  ]);
   const linked = linkedRows[0];
 
+  // Already linked to THIS account
   if (linked?.status === "allowed" && String(linked.chatId) === String(chatId)) {
     await sendTelegram("sendMessage", { chat_id: chatId, text: `✅ Bot allaqachon ${employee.name} nomiga ulangan.` });
     await sendMenu(chatId);
     return;
   }
 
+  // Linked to ANOTHER account — hard block, no admin request
   if (linked?.status === "allowed" && String(linked.chatId) !== String(chatId)) {
+    const adminId = adminChatId();
+    if (adminId) {
+      sendTelegram("sendMessage", {
+        chat_id: adminId,
+        text: [
+          "⚠️ Bloklangan urinish:",
+          `👤 Xodim: ${employee.name} (kod: ${code})`,
+          `🔗 Ro'yxatdagi Telegram: ${linked.chatId}`,
+          `🚫 Yangi urinish: ${chatId}`,
+          `Ism: ${name || "Noma'lum"}`,
+          "",
+          "Bu xodim kodi boshqa akkauntdan urinmoqda!",
+        ].join("\n"),
+      }).catch(() => {});
+    }
     await sendTelegram("sendMessage", {
       chat_id: chatId,
-      text: "❌ Bu xodim kodi boshqa Telegram akkauntga ulangan. Rahbar/HR bilan bog'laning.",
+      text: "🔒 Bu kod boshqa Telegram akkauntga bog'langan.\n\nAgar telefon almashtirsangiz, rahbarga murojaat qiling.",
+      reply_markup: { remove_keyboard: true },
+    });
+    return;
+  }
+
+  // Pending request already exists from ANOTHER account — block
+  if (pendingRows[0] && String(pendingRows[0].chatId) !== String(chatId)) {
+    await sendTelegram("sendMessage", {
+      chat_id: chatId,
+      text: "⏳ Bu kod uchun so'rov allaqachon yuborilgan. Rahbar tasdiqlashini kuting yoki rahbar bilan bog'laning.",
       reply_markup: { remove_keyboard: true },
     });
     return;
@@ -654,7 +685,7 @@ async function grantEmployeeCodeAccess({ chatId, message, code }) {
   await requestEmployeeDecision({ chatId, code, employee, name });
   await sendTelegram("sendMessage", {
     chat_id: chatId,
-    text: `⏳ Kod qabul qilindi. Rahbar/HR tasdiqlagandan keyin bot ${employee.name} nomiga ochiladi.`,
+    text: `⏳ So'rov yuborildi. Rahbar tasdiqlagandan keyin bot ${employee.name} nomiga ochiladi.`,
     reply_markup: { remove_keyboard: true },
   });
 }
@@ -869,6 +900,36 @@ async function handlePhoto({ chatId, message }) {
       reply_markup: employeeKeyboard(),
     });
     return true;
+  }
+
+  // ── Extra device binding check (belt-and-suspenders) ────────────────────
+  {
+    const sql = getSql();
+    const bindRow = await sql`
+      SELECT chat_id AS "chatId" FROM telegram_access
+      WHERE phone = ${"employee:" + employee.id} AND status = 'allowed' LIMIT 1
+    `;
+    if (bindRow[0] && String(bindRow[0].chatId) !== String(chatId)) {
+      await clearState(chatId);
+      const adminId = adminChatId();
+      if (adminId) {
+        sendTelegram("sendMessage", {
+          chat_id: adminId,
+          text: [
+            "🚨 Ruxsatsiz punch urinishi bloklandi!",
+            `👤 Xodim: ${employee.name}`,
+            `✅ Ro'yxatdagi chatId: ${bindRow[0].chatId}`,
+            `🚫 Uringan chatId: ${chatId}`,
+          ].join("\n"),
+        }).catch(() => {});
+      }
+      await sendTelegram("sendMessage", {
+        chat_id: chatId,
+        text: "🔒 Bu xodim boshqa Telegram akkauntga bog'langan. Davomat qayd etilmadi.",
+        reply_markup: employeeKeyboard(),
+      });
+      return true;
+    }
   }
 
   // ── Enforce face enrollment before punch ─────────────────────────────────
