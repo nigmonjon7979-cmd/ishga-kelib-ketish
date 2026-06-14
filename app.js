@@ -719,15 +719,15 @@ function showAdminMessage(message, type = "") {
 }
 
 function setAdminOpen(isOpen) {
-  adminArea.hidden = !isOpen;
-  adminGate.hidden = isOpen;
+  if (adminArea) adminArea.hidden = !isOpen;
+  if (adminGate) adminGate.hidden = isOpen;
   if (adminSummary) adminSummary.hidden = !isOpen;
   if (isOpen) {
     switchDashboardView("dashboard");
     renderBranchQr();
     renderGeofencePanel();
   }
-  if (!isOpen) adminPinInput.value = "";
+  if (!isOpen && adminPinInput) adminPinInput.value = "";
 }
 
 function switchDashboardView(viewName) {
