@@ -7,6 +7,58 @@ function dataUrlToBlob(photo) {
   return new Blob([Buffer.from(base64, "base64")], { type: mime });
 }
 
+// ─── AI Face comparison (Face++ API) ─────────────────────────────────────────
+
+async function downloadTelegramFileBuffer(fileId) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) return null;
+  const fileRes = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${fileId}`);
+  const fileData = await fileRes.json();
+  const filePath = fileData.result?.file_path;
+  if (!filePath) return null;
+  const photoRes = await fetch(`https://api.telegram.org/file/bot${token}/${filePath}`);
+  const buffer = await photoRes.arrayBuffer();
+  return Buffer.from(buffer);
+}
+
+// Returns { ok: bool, confidence: number, threshold: number } or null if API not configured
+async function compareFaceWithReference(refFileId, punchPhotoDataUrl) {
+  const apiKey = process.env.FACEPP_API_KEY;
+  const apiSecret = process.env.FACEPP_API_SECRET;
+  if (!apiKey || !apiSecret || !refFileId) return null;
+
+  try {
+    const [refBuf] = await Promise.all([
+      downloadTelegramFileBuffer(refFileId),
+    ]);
+    if (!refBuf) return null;
+
+    const punchBase64 = punchPhotoDataUrl.split(",")[1];
+    if (!punchBase64) return null;
+
+    const form = new FormData();
+    form.append("api_key", apiKey);
+    form.append("api_secret", apiSecret);
+    form.append("image_base641", refBuf.toString("base64"));
+    form.append("image_base642", punchBase64);
+
+    const res = await fetch("https://api-us.faceplusplus.com/facepp/v3/compare", {
+      method: "POST",
+      body: form,
+    });
+    const data = await res.json();
+    if (!res.ok || data.error_message) {
+      console.error("Face++ error:", data.error_message || res.status);
+      return null;
+    }
+    const threshold = data.thresholds?.["1e-3"] || 65;
+    return { ok: data.confidence >= threshold, confidence: data.confidence, threshold };
+  } catch (err) {
+    console.error("compareFaceWithReference error:", err);
+    return null;
+  }
+}
+
 function minutesFromTime(time) {
   if (!time || !time.includes(":")) return null;
   const [h, m] = time.split(":").map(Number);
@@ -87,7 +139,7 @@ module.exports = async function handler(req, res) {
     }
 
     const employees = await sql`
-      SELECT id, name, location_id AS "locationId", shift_start AS "shiftStart"
+      SELECT id, name, location_id AS "locationId", shift_start AS "shiftStart", face_file_id AS "faceFileId"
       FROM employees WHERE code = ${code} LIMIT 1
     `;
     const employee = employees[0];
@@ -154,6 +206,36 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    // ── AI Face verification ──────────────────────────────────────────────────
+    let faceStatus = "pending";
+    if (employee.faceFileId) {
+      const faceResult = await compareFaceWithReference(employee.faceFileId, photo);
+      if (faceResult !== null) {
+        if (!faceResult.ok) {
+          // Face mismatch — block punch, log and notify
+          const blockedProofId = randomUUID();
+          await Promise.all([
+            sql`INSERT INTO proofs (id, employee_id, day, type, punch_time, photo, location_lat, location_lng, location_accuracy, device_id, geo_status, face_status, retention_until) VALUES (${blockedProofId}, ${employee.id}, ${day}, ${action === "in" ? "arrival" : "departure"}, ${time}, ${photo}, ${locationLat}, ${locationLng}, ${Number.isFinite(locationAccuracy) ? locationAccuracy : null}, ${deviceId}, ${geoStatus}, 'rejected', NOW() + INTERVAL '1 year')`,
+            sql`INSERT INTO admin_logs (id, action, employee_id, employee_name, detail, reason) VALUES (${randomUUID()}, 'face_mismatch', ${employee.id}, ${employee.name}, ${`Ishonch: ${Math.round(faceResult.confidence)}%, talab: ${Math.round(faceResult.threshold)}%`}, 'Yuz mos kelmadi')`,
+            sendTelegramText([
+              "🚨 Yuz tekshiruvi o'tmadi!",
+              `👤 ${employee.name}`,
+              `📅 ${day}  ⏰ ${time}`,
+              `🤖 Ishonch: ${Math.round(faceResult.confidence)}% (talab: ${Math.round(faceResult.threshold)}%)`,
+              "Davomat SAQLANMADI.",
+            ].join("\n")),
+          ]);
+          json(res, 403, {
+            error: `Yuz tekshiruvi o'tmadi (${Math.round(faceResult.confidence)}%). Kamerani yuz tomon burting va qayta urining.`,
+            faceConfidence: faceResult.confidence,
+          });
+          return;
+        }
+        faceStatus = "ok";
+      }
+      // faceResult === null → API not configured or error → faceStatus stays 'pending'
+    }
+
     // Check last punch to allow multiple in/out per day
     const lastPunchRows = await sql`
       SELECT type FROM proofs WHERE employee_id = ${employee.id} AND day = ${day} ORDER BY saved_at DESC LIMIT 1
@@ -178,7 +260,7 @@ module.exports = async function handler(req, res) {
 
     // Save proof + attendance + device update in parallel
     await Promise.all([
-      sql`INSERT INTO proofs (id, employee_id, day, type, punch_time, photo, location_lat, location_lng, location_accuracy, device_id, geo_status, face_status, retention_until) VALUES (${proofId}, ${employee.id}, ${day}, ${proofType}, ${time}, ${photo}, ${locationLat}, ${locationLng}, ${Number.isFinite(locationAccuracy) ? locationAccuracy : null}, ${deviceId}, ${geoStatus}, 'pending', NOW() + INTERVAL '1 year')`,
+      sql`INSERT INTO proofs (id, employee_id, day, type, punch_time, photo, location_lat, location_lng, location_accuracy, device_id, geo_status, face_status, retention_until) VALUES (${proofId}, ${employee.id}, ${day}, ${proofType}, ${time}, ${photo}, ${locationLat}, ${locationLng}, ${Number.isFinite(locationAccuracy) ? locationAccuracy : null}, ${deviceId}, ${geoStatus}, ${faceStatus}, NOW() + INTERVAL '1 year')`,
       attendanceOp,
       deviceOp,
     ]);
