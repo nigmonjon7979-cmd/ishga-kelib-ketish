@@ -319,7 +319,7 @@ async function getProofDetails(proofIdOrPhoto) {
   };
 }
 
-let currentFacingMode = "environment";
+let currentFacingMode = "user";
 
 async function startCamera(facingMode = currentFacingMode) {
   if (PAGE !== "employee") return;
@@ -365,7 +365,6 @@ async function startCamera(facingMode = currentFacingMode) {
     if (flipBtn) flipBtn.title = facing === "environment" ? "Oldingi kameraga o'tish" : "Orqa kameraga o'tish";
   } catch {
     cameraStatus.textContent = "Kamera ruxsati berilmadi";
-    showSelfMessage("Keldim/Ketdim qilish uchun kameraga ruxsat bering.", "error");
   }
 }
 
@@ -524,16 +523,10 @@ function statusFor(employee, record) {
 
 function renderClock() {
   const now = new Date();
-  document.querySelector("#clockLabel").textContent = now.toLocaleTimeString("uz-UZ", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  document.querySelector("#todayLabel").textContent = now.toLocaleDateString("uz-UZ", {
-    weekday: "long",
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
+  const clockEl = document.querySelector("#clockLabel");
+  const todayEl = document.querySelector("#todayLabel");
+  if (clockEl) clockEl.textContent = now.toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" });
+  if (todayEl) todayEl.textContent = now.toLocaleDateString("uz-UZ", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
 }
 
 function buildEmployeeRow(employee) {
@@ -654,7 +647,7 @@ function render() {
   });
 
   renderSummary();
-  emptyState.classList.toggle("show", state.employees.length === 0);
+  emptyState?.classList.toggle("show", state.employees.length === 0);
 }
 
 function findEmployeeByCode() {
@@ -711,11 +704,13 @@ function showToast(message, duration = 2200) {
 }
 
 function showSelfMessage(message, type = "") {
+  if (!selfMessage) return;
   selfMessage.textContent = message;
   selfMessage.className = `self-message ${type}`.trim();
 }
 
 function showAdminMessage(message, type = "") {
+  if (!adminMessage) return;
   adminMessage.textContent = message;
   adminMessage.className = `self-message ${type}`.trim();
 }
@@ -784,8 +779,7 @@ function closeProof() {
 
 async function selfPunch(action) {
   if (!cameraReady) {
-    showSelfMessage("Avval kameraga ruxsat bering. Rasm dalili bo'lmasa vaqt yozilmaydi.", "error");
-    return;
+    showSelfMessage("Kamera ulangan emas — rasm bo'lmaydi, lekin vaqt yoziladi.", "warn");
   }
 
   const employee = findEmployeeByCode();
@@ -1783,7 +1777,7 @@ async function showEmployeeCard(employeeId) {
   const schedule = getSchedule(employee);
   const late = lateMinutes(employee, record);
   const monthRecords = Object.entries(state.attendance)
-    .filter(([day]) => day >= selectedDay.slice(0, 8) + "01" && day <= selectedDay)
+    .filter(([day]) => day >= selectedDay.slice(0, 7) + "-01" && day <= selectedDay)
     .map(([, dayRecords]) => dayRecords?.[employee.id] || {})
     .filter((item) => item.arrival);
   const proofId = record.arrivalPhoto || record.departurePhoto;
@@ -2001,6 +1995,7 @@ function renderFeaturePanels(records, totals) {
 }
 
 function renderArrivalReport(records) {
+  if (!arrivalReportBody) return;
   arrivalReportBody.innerHTML = "";
 
   records
@@ -2025,10 +2020,11 @@ function renderArrivalReport(records) {
       arrivalReportBody.append(row);
     });
 
-  arrivalEmptyState.classList.toggle("show", records.length === 0);
+  arrivalEmptyState?.classList.toggle("show", records.length === 0);
 }
 
 function renderLateReport(records) {
+  if (!lateReportBody) return;
   lateReportBody.innerHTML = "";
   const reportRows = records
     .map(({ employee, record }) => {
@@ -2054,7 +2050,7 @@ function renderLateReport(records) {
     lateReportBody.append(row);
   });
 
-  lateEmptyState.classList.toggle("show", reportRows.length === 0);
+  lateEmptyState?.classList.toggle("show", reportRows.length === 0);
 }
 
 function exportCsv() {
@@ -2185,9 +2181,9 @@ async function importEmployeesFromFile(file) {
   }
 }
 
-form.addEventListener("submit", async (event) => {
+form?.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const name = nameInput.value.trim();
+  const name = nameInput?.value.trim();
   if (!name) return;
 
   try {
@@ -2196,9 +2192,9 @@ form.addEventListener("submit", async (event) => {
       name,
       role: roleInput.value.trim(),
       phone: phoneInput?.value.trim() || "",
-      locationId: locationInput.value,
-      shiftStart: shiftStartInput?.value || getSchedule({ locationId: locationInput.value }).start,
-      shiftEnd: shiftEndInput?.value || getSchedule({ locationId: locationInput.value }).end,
+      locationId: locationInput?.value || "c5",
+      shiftStart: shiftStartInput?.value || getSchedule({ locationId: locationInput?.value || "c5" }).start,
+      shiftEnd: shiftEndInput?.value || getSchedule({ locationId: locationInput?.value || "c5" }).end,
       status: employeeStatusInput?.value || "active",
       photo,
     };
@@ -2223,7 +2219,7 @@ form.addEventListener("submit", async (event) => {
       saveLocalState();
       render();
     }
-    nameInput.focus();
+    nameInput?.focus();
   } catch (error) {
     showAdminMessage(error.message, "error");
   }
@@ -2234,7 +2230,7 @@ function debouncedRender() {
   clearTimeout(searchDebounce);
   searchDebounce = setTimeout(render, 200);
 }
-searchInput.addEventListener("input", debouncedRender);
+searchInput?.addEventListener("input", debouncedRender);
 globalSearchInput?.addEventListener("input", debouncedRender);
 dashboardTabs.forEach((button) => {
   button.addEventListener("click", () => switchDashboardView(button.dataset.dashboardTab));
@@ -2246,7 +2242,7 @@ problemFilterButtons.forEach((button) => {
     render();
   });
 });
-locationInput.addEventListener("change", () => {
+locationInput?.addEventListener("change", () => {
   const schedule = getSchedule({ locationId: locationInput.value });
   if (shiftStartInput) shiftStartInput.value = schedule.start || "09:00";
   if (shiftEndInput) shiftEndInput.value = schedule.end || "19:00";

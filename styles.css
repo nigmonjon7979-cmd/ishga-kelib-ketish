@@ -191,29 +191,30 @@ label {
 }
 
 /* ─── Self-Service Kiosk ─────────────────────────────────────────── */
-.self-panel {
+.kiosk-layout {
   display: grid;
-  grid-template-columns: 1fr 1.1fr;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-  margin-bottom: 18px;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+  margin-bottom: 20px;
 }
 
-.kiosk-cam {
-  background: #060b09;
-  position: relative;
-  min-height: 300px;
+/* Camera column */
+.kiosk-cam-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .camera-box {
   position: relative;
   width: 100%;
-  height: 100%;
-  min-height: 300px;
+  aspect-ratio: 4/3;
+  border-radius: 18px;
   overflow: hidden;
+  background: #0d0d0d;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.28);
+  border: 2px solid rgba(255,255,255,0.06);
 }
 
 .camera-box video {
@@ -250,22 +251,22 @@ label {
 
 #cameraStatus {
   position: absolute;
-  bottom: 12px;
-  left: 12px;
-  right: 12px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: rgba(0,0,0,0.72);
-  color: rgba(255,255,255,0.92);
-  font-size: 11px;
+  bottom: 14px;
+  left: 14px;
+  right: 14px;
+  padding: 9px 14px;
+  border-radius: 12px;
+  background: rgba(0,0,0,0.75);
+  color: rgba(255,255,255,0.9);
+  font-size: 12px;
   font-weight: 600;
   text-align: center;
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(10px);
   letter-spacing: 0.03em;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 7px;
 }
 #cameraStatus::before {
   content: '●';
@@ -275,100 +276,181 @@ label {
 }
 @keyframes camPulse { 0%,100%{ opacity:1 } 50%{ opacity:0.25 } }
 
-.kiosk-side {
+.kiosk-cam-hint {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* Action column */
+.kiosk-action-col {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 28px 30px;
-  justify-content: center;
-  border-left: 1px solid var(--line);
 }
 
-.kiosk-header { margin-bottom: 2px; }
-.kiosk-header h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.025em; margin-top: 3px; }
+/* Code card */
+.kiosk-card {
+  background: var(--panel);
+  border: 1.5px solid var(--line);
+  border-radius: 18px;
+  padding: 22px 22px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+.kiosk-card-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+.kiosk-card-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 0;
+}
 
 .kiosk-code-input {
-  font-size: 34px !important;
+  font-size: 40px !important;
   font-weight: 900 !important;
   text-align: center;
-  letter-spacing: 0.28em;
-  min-height: 76px !important;
-  border: 2px solid var(--line) !important;
-  border-radius: var(--radius) !important;
+  letter-spacing: 0.3em;
+  min-height: 80px !important;
+  width: 100% !important;
+  border: 2.5px solid var(--line) !important;
+  border-radius: 14px !important;
   background: var(--bg) !important;
   color: var(--ink) !important;
   transition: border-color 150ms, box-shadow 150ms !important;
   font-family: ui-monospace, 'Cascadia Code', Menlo, monospace !important;
 }
-.kiosk-code-input::placeholder { opacity: 0.25; font-size: 28px; letter-spacing: 0.15em; }
+.kiosk-code-input::placeholder { opacity: 0.2; font-size: 30px; letter-spacing: 0.2em; }
 .kiosk-code-input:focus {
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 4px rgba(240,121,34,0.14) !important;
+  box-shadow: 0 0 0 4px rgba(240,121,34,0.15) !important;
+  outline: none !important;
 }
 
 .employee-preview {
-  min-height: 18px;
-  font-size: 13px;
-  font-weight: 600;
+  min-height: 0;
+  font-size: 14px;
+  font-weight: 700;
   color: var(--muted);
-  padding: 8px 12px;
+  padding: 0;
   border-radius: var(--radius-xs);
   background: transparent;
-  transition: background 150ms, color 150ms;
+  transition: background 150ms, color 150ms, padding 150ms;
+  width: 100%;
+  text-align: center;
 }
-.employee-preview:not(:empty) { background: var(--bg); border: 1px solid var(--line); text-align: center; }
-.employee-preview.success { color: var(--accent-text); background: var(--accent-light); border-color: var(--accent); font-weight: 700; }
-.employee-preview.error   { color: var(--danger); background: var(--danger-light); border-color: var(--danger); font-weight: 700; }
-
-.location-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 12px;
-  border-radius: 999px;
+.employee-preview:not(:empty) {
+  padding: 10px 14px;
   background: var(--bg);
-  border: 1px solid var(--line);
-  font-size: 12px;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+}
+.employee-preview.success { color: var(--ok-text); background: var(--ok-light); border-color: var(--ok); }
+.employee-preview.error   { color: var(--danger); background: var(--danger-light); border-color: var(--danger); }
+
+/* Location badge */
+.kiosk-location-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: var(--panel);
+  border: 1.5px solid var(--line);
+  font-size: 12.5px;
   font-weight: 500;
   color: var(--muted);
-  transition: background 150ms, color 150ms, border-color 150ms;
+  transition: background 200ms, color 200ms, border-color 200ms;
 }
-.location-badge.success { background: var(--accent-light); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
-.location-badge.error   { background: var(--danger-light); border-color: var(--danger); color: var(--danger); font-weight: 600; }
+.kiosk-location-badge.success {
+  background: var(--ok-light);
+  border-color: var(--ok);
+  color: var(--ok-text);
+  font-weight: 600;
+}
+.kiosk-location-badge.error {
+  background: var(--danger-light);
+  border-color: var(--danger);
+  color: var(--danger);
+  font-weight: 600;
+}
+.kiosk-location-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex-shrink: 0;
+  animation: camPulse 2s ease-in-out infinite;
+}
+.kiosk-location-badge.success .kiosk-location-dot { background: var(--ok); }
+.kiosk-location-badge.error   .kiosk-location-dot { background: var(--danger); }
 
+/* Kiosk action buttons */
 .kiosk-btns {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 12px;
 }
 
-.kiosk-btn-in, .kiosk-btn-out {
-  min-height: 60px !important;
-  font-size: 15px !important;
-  font-weight: 700 !important;
-  border-radius: var(--radius) !important;
-  letter-spacing: 0.01em;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.12) !important;
-  transition: background 150ms, transform 80ms, box-shadow 150ms, opacity 150ms !important;
+.kiosk-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 88px !important;
+  padding: 14px 10px !important;
+  border-radius: 16px !important;
+  border: none !important;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 80ms, box-shadow 150ms, opacity 150ms, background 150ms !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.14) !important;
 }
+.kiosk-btn:active:not(:disabled) { transform: scale(0.97) !important; }
+.kiosk-btn:disabled { opacity: 0.38 !important; cursor: not-allowed !important; box-shadow: none !important; }
+
+.kiosk-btn-icon { font-size: 26px; line-height: 1; }
+.kiosk-btn-text { font-size: 16px; font-weight: 800; color: #fff; letter-spacing: -0.01em; }
+.kiosk-btn-sub  { font-size: 11px; font-weight: 500; color: rgba(255,255,255,0.72); }
+
 .kiosk-btn-in  { background: var(--accent) !important; }
-.kiosk-btn-in:hover:not(:disabled)  { background: var(--accent-hover) !important; box-shadow: 0 4px 14px rgba(240,121,34,0.35) !important; }
-.kiosk-btn-out { background: var(--accent-2) !important; }
-.kiosk-btn-out:hover:not(:disabled) { background: #0369a1 !important; box-shadow: 0 4px 14px rgba(2,132,199,0.35) !important; }
+.kiosk-btn-in:hover:not(:disabled)  {
+  background: var(--accent-hover) !important;
+  box-shadow: 0 6px 22px rgba(240,121,34,0.45) !important;
+}
+.kiosk-btn-out { background: #374151 !important; }
+.kiosk-btn-out:hover:not(:disabled) {
+  background: #1f2937 !important;
+  box-shadow: 0 6px 22px rgba(0,0,0,0.30) !important;
+}
 
 .self-message {
-  min-height: 18px;
-  font-size: 13px;
+  min-height: 0;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--muted);
-  padding: 9px 12px;
-  border-radius: var(--radius-sm);
-  transition: background 200ms;
+  padding: 0;
+  border-radius: 12px;
+  transition: background 200ms, padding 200ms;
+  text-align: center;
 }
-.self-message:not(:empty) { background: var(--bg); border: 1px solid var(--line); }
-.self-message.success { color: var(--accent-text); background: var(--accent-light); border-color: var(--accent); }
-.self-message.error   { color: var(--danger);       background: var(--danger-light); border-color: var(--danger); }
-.self-message.warn    { color: var(--warn);          background: var(--warn-light);   border-color: var(--warn); }
+.self-message:not(:empty) {
+  padding: 11px 14px;
+  background: var(--bg);
+  border: 1.5px solid var(--line);
+}
+.self-message.success { color: var(--ok-text);   background: var(--ok-light);     border-color: var(--ok); }
+.self-message.error   { color: var(--danger);     background: var(--danger-light); border-color: var(--danger); }
+.self-message.warn    { color: var(--warn);        background: var(--warn-light);   border-color: var(--warn); }
 
 /* ─── Admin Gate ─────────────────────────────────────────────────── */
 /* Full definition in Admin Page Layout section below */
@@ -1335,9 +1417,8 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover { background: #484f58; }
   .topbar { flex-direction: column; align-items: stretch; }
   .datebox { text-align: left; }
 
-  .self-panel { grid-template-columns: 1fr; }
-  .kiosk-cam .camera-box { min-height: 220px; }
-  .kiosk-side { padding: 20px; border-left: none; border-top: 1px solid var(--line); }
+  .kiosk-layout { grid-template-columns: 1fr; }
+  .camera-box { aspect-ratio: 16/9; }
 
   .admin-gate { grid-template-columns: 1fr; }
   .admin-tools { grid-template-columns: 1fr; }
@@ -1352,6 +1433,100 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover { background: #484f58; }
   .geofence-actions { grid-template-columns: 1fr; }
 }
 
+/* ─── Mobil kiosk dizayni (480px gacha) ─────────────────────────── */
+@media (max-width: 480px) {
+  /* Asosiy konteyner */
+  .app { width: 100%; padding: 0; }
+
+  /* Topbar — yashirin, faqat brand ko'rinadi */
+  [data-page="employee"] .topbar {
+    padding: 12px 16px 10px;
+    margin-bottom: 0;
+    border-bottom: none;
+    flex-direction: row;
+    align-items: center;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  [data-page="employee"] .datebox {
+    min-width: unset;
+    padding: 6px 12px;
+    border-radius: 10px;
+    text-align: right;
+  }
+  [data-page="employee"] .datebox span { font-size: 9px; }
+  [data-page="employee"] .datebox strong { font-size: 18px; }
+
+  /* Kiosk layout — to'liq ekran */
+  [data-page="employee"] .kiosk-layout {
+    gap: 0;
+    margin-bottom: 0;
+  }
+
+  /* Kamera — katta va to'liq kenglik */
+  [data-page="employee"] .kiosk-cam-col {
+    gap: 0;
+  }
+  [data-page="employee"] .camera-box {
+    border-radius: 0;
+    aspect-ratio: unset;
+    height: 52vw;
+    min-height: 200px;
+    max-height: 260px;
+    border: none;
+    box-shadow: none;
+  }
+  [data-page="employee"] .kiosk-cam-hint {
+    display: none;
+  }
+
+  /* Amallar ustuni */
+  [data-page="employee"] .kiosk-action-col {
+    padding: 14px 14px 100px;
+    gap: 12px;
+  }
+
+  /* Kod kartasi */
+  [data-page="employee"] .kiosk-card {
+    padding: 16px 16px 14px;
+    border-radius: 14px;
+    gap: 6px;
+  }
+  [data-page="employee"] .kiosk-card-icon { font-size: 22px; }
+  [data-page="employee"] .kiosk-card-label { font-size: 11px; }
+
+  /* Kod input — katta */
+  [data-page="employee"] .kiosk-code-input {
+    font-size: 44px !important;
+    min-height: 72px !important;
+    letter-spacing: 0.35em;
+    border-radius: 12px !important;
+  }
+
+  /* Lokatsiya */
+  [data-page="employee"] .kiosk-location-badge {
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 12px;
+  }
+
+  /* Tugmalar — katta va qulay */
+  [data-page="employee"] .kiosk-btns {
+    gap: 10px;
+  }
+  [data-page="employee"] .kiosk-btn {
+    min-height: 80px !important;
+    border-radius: 16px !important;
+    gap: 2px;
+  }
+  [data-page="employee"] .kiosk-btn-icon { font-size: 28px; }
+  [data-page="employee"] .kiosk-btn-text { font-size: 17px; }
+  [data-page="employee"] .kiosk-btn-sub  { font-size: 11px; }
+}
+
 /* ─── Responsive: 640px ──────────────────────────────────────────── */
 @media (max-width: 640px) {
   .app { width: calc(100% - 20px); padding-top: 14px; }
@@ -1359,10 +1534,9 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover { background: #484f58; }
   .summary-grid { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
   .summary-grid strong { font-size: 24px; }
 
-  .kiosk-side { padding: 16px; }
-  .kiosk-code-input { font-size: 26px !important; min-height: 66px !important; }
+  .kiosk-code-input { font-size: 30px !important; min-height: 70px !important; }
   .kiosk-btns { grid-template-columns: 1fr; }
-  .kiosk-btn-in, .kiosk-btn-out { min-height: 52px !important; }
+  .kiosk-btn { min-height: 72px !important; }
 
   .admin-form { grid-template-columns: 1fr; }
 
@@ -1378,6 +1552,42 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover { background: #484f58; }
   .qr-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .form-grid-two { grid-template-columns: 1fr; }
 }
+
+/* ─── iOS Install Banner ────────────────────────────────────────────── */
+.ios-banner {
+  position: fixed;
+  bottom: env(safe-area-inset-bottom, 0);
+  left: 0; right: 0;
+  background: var(--panel);
+  border-top: 1.5px solid var(--line);
+  padding: 14px 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 999;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.10);
+  animation: slideUp 300ms ease;
+}
+@keyframes slideUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
+
+.ios-banner-close {
+  position: absolute;
+  top: 10px; right: 12px;
+  background: var(--line);
+  border: none;
+  border-radius: 50%;
+  width: 24px; height: 24px;
+  font-size: 11px;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  line-height: 1;
+}
+.ios-banner-icon { flex-shrink: 0; }
+.ios-banner-text { display: flex; flex-direction: column; gap: 3px; }
+.ios-banner-text strong { font-size: 14px; font-weight: 700; color: var(--ink); }
+.ios-banner-text span   { font-size: 12px; color: var(--muted); line-height: 1.4; }
+.ios-banner-text b      { color: var(--accent); }
 
 /* ─── Toast notification ────────────────────────────────────────────── */
 #toast-msg {

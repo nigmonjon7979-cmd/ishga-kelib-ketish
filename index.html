@@ -2,11 +2,33 @@
 <html lang="uz">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Ishga kelib ketish nazorati</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Mebel House — Ish vaqti</title>
+    <meta name="description" content="Xodimlar kelish-ketish nazorati" />
+    <meta name="theme-color" content="#F07922" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Mebel House" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body data-page="employee">
+
+    <!-- iOS install banner -->
+    <div id="iosBanner" class="ios-banner" hidden>
+      <button class="ios-banner-close" onclick="document.getElementById('iosBanner').hidden=true">✕</button>
+      <div class="ios-banner-icon">
+        <svg viewBox="0 0 120 60" width="40" height="20"><rect x="2" y="2" width="46" height="46" rx="8" fill="#F07922"/><text x="25" y="36" font-family="Arial Black,sans-serif" font-size="30" font-weight="900" fill="white" text-anchor="middle">Ц</text><rect x="26" y="20" width="40" height="38" rx="7" fill="#5A5A5A"/><text x="46" y="49" font-family="Arial Black,sans-serif" font-size="24" font-weight="900" fill="white" text-anchor="middle">5</text></svg>
+      </div>
+      <div class="ios-banner-text">
+        <strong>Ilovani o'rnating</strong>
+        <span>Pastdagi <b>↑</b> tugmani bosing → <b>"Add to Home Screen"</b></span>
+      </div>
+    </div>
+
     <main class="app">
       <section class="topbar" aria-label="Bosh panel">
         <div class="topbar-brand">
@@ -29,31 +51,66 @@
         </div>
       </section>
 
-      <section class="self-panel" aria-label="Xodim kelish ketish oynasi">
-        <div class="kiosk-cam">
+      <section class="kiosk-layout" aria-label="Xodim kelish ketish">
+
+        <!-- Camera column -->
+        <div class="kiosk-cam-col">
           <div class="camera-box">
             <video id="cameraPreview" autoplay playsinline muted></video>
             <canvas id="proofCanvas" hidden></canvas>
             <span id="cameraStatus">Kamera ochilmoqda...</span>
             <button id="cameraFlipBtn" type="button" onclick="switchCamera()" title="Kamerani almashtirish" aria-label="Kamerani almashtirish">⟳</button>
           </div>
+          <div class="kiosk-cam-hint">
+            <span>📸 Kamera yuzingizni tasdiqlash uchun</span>
+          </div>
         </div>
-        <div class="kiosk-side">
-          <div class="kiosk-header">
-            <p class="eyebrow">Xodimlar bo'limi</p>
-            <h2>Kodingizni kiriting</h2>
-          </div>
-          <div id="selfServiceForm">
-            <input id="employeeCode" type="text" inputmode="numeric" autocomplete="off" placeholder="• • • •" maxlength="4" required class="kiosk-code-input" />
+
+        <!-- Action column -->
+        <div class="kiosk-action-col">
+
+          <!-- Step 1: Code input -->
+          <div class="kiosk-card">
+            <div class="kiosk-card-icon">🔢</div>
+            <p class="kiosk-card-label">Xodim kodi</p>
+            <input
+              id="employeeCode"
+              type="text"
+              inputmode="numeric"
+              autocomplete="off"
+              placeholder="0000"
+              maxlength="4"
+              required
+              class="kiosk-code-input"
+              aria-label="4 xonali kod"
+            />
             <div id="codeEmployeePreview" class="employee-preview"></div>
-            <div id="locationStatus" class="location-badge">📍 Lokatsiya belgilashda olinadi</div>
-            <div class="kiosk-btns">
-              <button id="selfCheckInBtn" type="button" disabled class="kiosk-btn-in">✅ Keldim</button>
-              <button id="selfCheckOutBtn" type="button" disabled class="kiosk-btn-out">🚪 Ketdim</button>
-            </div>
           </div>
+
+          <!-- Location status -->
+          <div id="locationStatus" class="kiosk-location-badge">
+            <span class="kiosk-location-dot"></span>
+            Lokatsiya aniqlanmoqda...
+          </div>
+
+          <!-- Buttons -->
+          <div class="kiosk-btns">
+            <button id="selfCheckInBtn" type="button" disabled class="kiosk-btn kiosk-btn-in">
+              <span class="kiosk-btn-icon">✅</span>
+              <span class="kiosk-btn-text">Keldim</span>
+              <span class="kiosk-btn-sub">Ishni boshlash</span>
+            </button>
+            <button id="selfCheckOutBtn" type="button" disabled class="kiosk-btn kiosk-btn-out">
+              <span class="kiosk-btn-icon">🚪</span>
+              <span class="kiosk-btn-text">Ketdim</span>
+              <span class="kiosk-btn-sub">Ishni tugatish</span>
+            </button>
+          </div>
+
+          <!-- Feedback message -->
           <div id="selfMessage" class="self-message" role="status"></div>
         </div>
+
       </section>
 
       <div style="display:none" id="adminArea" hidden></div>
@@ -619,5 +676,22 @@ Export Excel/CSV
     </div>
 
     <script src="app.js"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      }
+      // iOS Safari da "Add to Home Screen" banneri ko'rsatish
+      (function() {
+        const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+        const isInStandalone = window.navigator.standalone === true;
+        const dismissed = sessionStorage.getItem('ios-banner-dismissed');
+        if (isIos && !isInStandalone && !dismissed) {
+          document.getElementById('iosBanner').hidden = false;
+          document.querySelector('.ios-banner-close').addEventListener('click', () => {
+            sessionStorage.setItem('ios-banner-dismissed', '1');
+          });
+        }
+      })();
+    </script>
   </body>
 </html>
