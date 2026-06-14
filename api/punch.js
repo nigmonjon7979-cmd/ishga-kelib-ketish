@@ -39,8 +39,8 @@ async function compareFaceWithReference(refFileId, punchPhotoDataUrl) {
     const form = new FormData();
     form.append("api_key", apiKey);
     form.append("api_secret", apiSecret);
-    form.append("image_base641", refBuf.toString("base64"));
-    form.append("image_base642", punchBase64);
+    form.append("image_base64_1", refBuf.toString("base64"));
+    form.append("image_base64_2", punchBase64);
 
     const res = await fetch("https://api-us.faceplusplus.com/facepp/v3/compare", {
       method: "POST",
